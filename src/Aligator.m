@@ -1400,7 +1400,7 @@ RecSolve[recSystem_,varList_,{recVar_}] :=
                 recEq = indepList[[i]];
                 rhsEq = recEq[[2]];
                 x     = Union[Cases[recEq,f_[n+j_.]->f,Infinity]][[1]];
-                (* RecType Check  *)
+                (* RecType Check *)
                 (* Print["Start EqRecSolve for ", recEq," with recurrence index: ",n]; *)
                 {solvable,cfRec,cfSolSet,exps} = EqRecSolve[recEq,n];
                 (* Print["exps: ", exps]; Print["solvable: ",solvable ]; Print["cfRec: ",cfRec ]; Print["cfSolSet: ",cfSolSet ]; *)
@@ -1550,45 +1550,48 @@ SeqToVars[sys_,varList_,expVars_,expBases_,n_] :=
 
 EqRecSolve[x_[y_]==rhs_,n_] :=
     Module[ {recOrder,recEq,cfRec,exps,solvable,gosperCoeff,rhsTerm,needShift,rhsEq,recEqSolved,solSet},
-        recEq = x[y]==rhs;
-        (*Print["In EqRecSolve with ", recEq];*)
-        solvable = True;
-        recOrder = RecurrenceOrder[recEq,n,x];
+        (* Print["In EqRecSolve with ", recEq]; *)
+        recEq     = x[y] == rhs;
+        solvable  = True;
+        recOrder  = RecurrenceOrder[recEq,n,x];
         needShift = y-(n+recOrder);
         (* shift it to its order first, if needed. E.g. x[n+2]==x[n+1]+1 should be solved as x[n+1]==x[n]+1 *)
-        cfRec = {};
-        solSet = {};
-        exps = {};
-        rhsEq = rhs/.n->n-needShift;
+        cfRec       = {};
+        solSet      = {};
+        exps        = {};
+        rhsEq       = rhs/.n->n-needShift;
         recEqSolved = recEq/.n->n-needShift;
-        (*Print["recOrder: ",recOrder];*)
+        (* Print["recOrder: ",recOrder]; *)
         Which[
-             recOrder<1,Print["Not supported rec: ",recEq];
-                        solvable = False,
-             recOrder >1, (* Print["start LinRecCSolve."];*){solvable,cfRec,solSet,exps} = LinRecCSolve[recEqSolved,n];
-                                                            Print[solvable];
-                                                            If[ solvable,
-                                                                {cfRec,solSet} = {ShiftBackClosedForm[cfRec,n,needShift],ShiftBackSolSet[solSet,n,needShift]}
-                                                            ],
-            recOrder==1, 
-                    gosperCoeff = Coefficient[rhsEq,x[n]];
-                                   (*first Try CFinite, if it does not work, try zb*)
-                                  (*If[Not[solvable] ||Not[NumberQ[gosperCoeff] && (gosperCoeff==1)], *)
-                                (* try Cfinite *)
-                    {solvable,cfRec,solSet,exps} = LinRecCSolve[recEqSolved,n];
-                               (* Print["solvable as CFinite: ",solvable];*)
-                    If[ Not[solvable] && NumberQ[gosperCoeff] && (gosperCoeff==1),
-                            (* might be Gosper-solvable *)
-                        rhsTerm = rhsEq-x[n];        
-    (*Print["Start GosperCheckAndSolve."];*)
-                        {solvable,cfRec,solSet,exps} = GosperCheckAndSolve[rhsTerm,x,n];
-                        Print["solvable as Gosper: ", solvable];
-                    ];
-                        (*make the shift back in the cfRec: x[n]=rhs+x[0] should be x[n+needShift]=rhs+x[0+needShift]*)
-                    If[ solvable,
-                        {cfRec,solSet} = {ShiftBackClosedForm[cfRec,n,needShift],ShiftBackSolSet[solSet,n,needShift]}
-                    ]
+            recOrder < 1,
+                Print["Not supported rec: ",recEq];
+                solvable = False,
+            recOrder > 1, 
+                (* Print["start LinRecCSolve."]; *)
+                {solvable,cfRec,solSet,exps} = LinRecCSolve[recEqSolved,n];
+                Print[solvable];
+                If[ solvable,
+                    {cfRec,solSet} = {ShiftBackClosedForm[cfRec,n,needShift],ShiftBackSolSet[solSet,n,needShift]}
+                ],
+            recOrder == 1, 
+                gosperCoeff = Coefficient[rhsEq,x[n]];
+                (* first Try CFinite, if it does not work, try zb *)
+                (* If[Not[solvable] ||Not[NumberQ[gosperCoeff] && (gosperCoeff==1)],  *)
+                (* try Cfinite *)
+                {solvable,cfRec,solSet,exps} = LinRecCSolve[recEqSolved,n];
+                (* Print["solvable as CFinite: ",solvable];*)
+                If[ Not[solvable] && NumberQ[gosperCoeff] && (gosperCoeff==1),
+                    (* might be Gosper-solvable *)
+                    rhsTerm = rhsEq-x[n];        
+                    (*Print["Start GosperCheckAndSolve."];*)
+                    {solvable,cfRec,solSet,exps} = GosperCheckAndSolve[rhsTerm,x,n];
+                    Print["solvable as Gosper: ", solvable];
                 ];
+                (* make the shift back in the cfRec: x[n]=rhs+x[0] should be x[n+needShift]=rhs+x[0+needShift] *)
+                If[ solvable,
+                    {cfRec,solSet} = {ShiftBackClosedForm[cfRec,n,needShift],ShiftBackSolSet[solSet,n,needShift]}
+                ]
+        ];
         {solvable,cfRec,solSet,exps}
     ]
 
