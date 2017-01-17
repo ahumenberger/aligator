@@ -212,18 +212,18 @@ Aligator[c_,IniVal->{seq_}] :=
 Aligator[c_] :=
     Module[ {sw,ifCheck,loops,invariants = {}},
         sw = InputCheck[c];
-        If[ sw==0,
+        If[ sw == 0,
             Abort[]
         ];
         (* correct input - proceed! *)
-        ifCheck = CheckIfSeq[c]; 
-        (*Print["If-statements: ",ifCheck];*)
+        (* ifCheck = CheckIfSeq[c]; *)
+        (* Print["If-statements: ",ifCheck]; *)
         loops = IfWhileTransform[c,Body[],Body[]];
-        (*Print["Number of inner loops:", Length[loops]];*)
-        (*Print["Loops:",loops];*)
+        (* Print["Number of inner loops:", Length[loops]]; *)
+        (* Print["Loops:",loops]; *)
         If[ !ifCheck, 
-           (* no conditional branches - invariant generation for loops with assignments only*)
-           (*Print["No If-statements!"]; *)
+            (* no conditional branches - invariant generation for loops with assignments only*)
+            (* Print["No If-statements!"]; *)
             invariants = InvLoopAssg[loops],
             (* with conditional branches - invariant generation for loops with assignments only*)
             (*Print["With If-statements!"];*)
@@ -481,7 +481,7 @@ CheckIfSeq[loop_] :=
 IfWhileTransform[WHILE[b_,c__],beforeSt_,afterSt_] :=
     Module[ {innerLoops},
         innerLoops = Flatten[LoopTransform[c,beforeSt,afterSt]];
-        (*in case an inner loop is empty body, Body[], remove it *)
+        (* in case an inner loop is empty body, Body[], remove it *)
         DeleteCases[innerLoops,Body[],Infinity]
     ]
 
@@ -565,32 +565,32 @@ RecSystem[List[assgn__]] :=
 
 RecSystem[assgn__] :=
     Module[ {assgAll,recAssg,n = Unique[],recVars,recEqSystem, recVarList,finalRecEqSystem,finalRecVarList,flattenRecEqSystem,flattenRecVarList,allVars,recChangedVarList,notRecVar,notRecChangedVars,removeVar,normVal,normalizedRecEqSystem,normalizedRecVarList,normedVars,shiftVarsNormed,i},
-        assgAll = RecEqs[assgn,{}];
-        {recAssg,recVars} = FlattenBody[assgAll,{},{}];
+        assgAll                   = RecEqs[assgn,{}];
+        {recAssg,recVars}         = FlattenBody[assgAll,{},{}];
         {recEqSystem, recVarList} = RecRelations[recAssg,n,{},{},recVars];
-        recChangedVars = ProperRecVars[recEqSystem,n,{}];
-        If[ recChangedVars=={},
+        recChangedVars            = ProperRecVars[recEqSystem,n,{}];
+        If[ recChangedVars == {},
             Print["No recursively changed variables! Not P-solvable Loop!"];
             Abort[]
         ];
         {flattenRecEqSystem,flattenRecVarList} = FlattenRecurrences[recEqSystem,n,recEqSystem,recVarList];
-        (*make shifts, if index contains minus operations, i.e. n-1 should be shifted to n*)
+        (* make shifts, if index contains minus operations, i.e. n-1 should be shifted to n *)
         {finalRecEqSystem,finalRecVarList} = ShiftRec[{flattenRecEqSystem,flattenRecVarList},n];
-        (* {finalRecEqSystem,finalRecVarList}=ShiftRec[flattenRecEqSystem,n,flattenRecVarList,{}]; *)
-        allVars = Union[Table[finalRecVarList[[i,2]],{i,1,Length[flattenRecVarList]}]];
+        (* {finalRecEqSystem,finalRecVarList} = ShiftRec[flattenRecEqSystem,n,flattenRecVarList,{}]; *)
+        allVars           = Union[Table[finalRecVarList[[i,2]],{i,1,Length[flattenRecVarList]}]];
         notRecChangedVars = Complement[allVars,recChangedVars];
         recChangedVarList = finalRecVarList;
         Do[
-        removeVar = notRecChangedVars[[i]];
-        recChangedVarList = DeleteCases[recChangedVarList,{_,removeVar},Infinity],
-        {i,1,Length[notRecChangedVars]}
+            removeVar         = notRecChangedVars[[i]];
+            recChangedVarList = DeleteCases[recChangedVarList,{_,removeVar},Infinity],
+            {i,1,Length[notRecChangedVars]}
         ];
         normVal = Min[Cases[finalRecEqSystem,_[n+i_.]->i,Infinity]];
         {normalizedRecEqSystem,normedVars} = {finalRecEqSystem,recChangedVarList};
-        If[ normVal>0, (*there is an extra shift in the recSystem. It is not needed! *)
+        If[ normVal > 0, (* there is an extra shift in the recSystem. It is not needed! *)
             {normalizedRecEqSystem,normedVars} = {finalRecEqSystem,normedVars}/.n->n-normVal;
             shiftVarsNormed = Min[Cases[normedVars,_[n+i_.]->i,Infinity]];
-            If[ shiftVarsNormed<0,
+            If[ shiftVarsNormed < 0,
                 normedVars = NormedVarList[normedVars,n,{}]
             ]
         ];
@@ -1550,7 +1550,7 @@ SeqToVars[sys_,varList_,expVars_,expBases_,n_] :=
 
 EqRecSolve[x_[y_]==rhs_,n_] :=
     Module[ {recOrder,recEq,cfRec,exps,solvable,gosperCoeff,rhsTerm,needShift,rhsEq,recEqSolved,solSet},
-        (* Print["In EqRecSolve with ", recEq]; *)
+        Print["In EqRecSolve with ", recEq];
         recEq     = x[y] == rhs;
         solvable  = True;
         recOrder  = RecurrenceOrder[recEq,n,x];
@@ -1561,7 +1561,7 @@ EqRecSolve[x_[y_]==rhs_,n_] :=
         exps        = {};
         rhsEq       = rhs/.n->n-needShift;
         recEqSolved = recEq/.n->n-needShift;
-        (* Print["recOrder: ",recOrder]; *)
+        Print["recOrder: ",recOrder];
         Which[
             recOrder < 1,
                 Print["Not supported rec: ",recEq];
@@ -1628,14 +1628,14 @@ ShiftBackSolSet[system__,n_,shiftValue_] :=
 
 InvLoopAssg[loop_] :=
     Module[ {recSystem,VarList,CFSystem,recVar,expVars,finVars,iniVars,AlgDep,elimVars,polySystem,invariants},
-        {recSystem,VarList,recVar} = FromLoopToRecs[loop];
+        {recSystem,VarList,recVar}                       = FromLoopToRecs[loop];
         {CFSystem,recVar,expVars,finVars,iniVars,AlgDep} = RecSolve[recSystem,VarList,recVar];
-        (* Print["P-solvable Loop!"];*)
-        elimVars = Union[recVar,expVars];
+        (* Print["P-solvable Loop!"]; *)
+        elimVars   = Union[recVar,expVars];
         polySystem = Union[AlgDep,CFSystem];
         invariants = GroebnerBasis[polySystem,finVars,elimVars];
         Print["Method is complete!"];
-        Simplify[ invariants]
+        Simplify[invariants]
     ]
 
 
