@@ -1370,73 +1370,72 @@ GosperCheckAndSolve[rhs_,x_,n_] :=
 
 RecSolve[recSystem_,varList_,{recVar_}] :=
     Module[ {indepList,depList,n,indepNr,depNr,cfRules,recsLeft,solvable,i,recEq,rhsEq,recOrder,cfinite,cfRec,exps,newRecSystem,cfSystem,expList,ruleX,rulesListX,expVars,expDepList,finVars,iniVarList,iniVarListCorresp,x,iniVarRules,cfSolSet,expBases},
-        n = recVar;
+        n            = recVar;
         newRecSystem = recSystem;
-        cfSystem = {};
-        expList = {};
-        iniVarList = {};
-        cfRules = {};
-        recsLeft = True;
-        solvable = True;
-        finVars = {};
+        cfSystem     = {};
+        expList      = {};
+        iniVarList   = {};
+        cfRules      = {};
+        recsLeft     = True;
+        solvable     = True;
+        finVars      = {};
         While[ solvable && recsLeft,
-                  (*Print["Start RecDependency Check."];*)
+            (* Print["Start RecDependency Check."]; *)
             {indepList,depList} = RecDependencyCheck[newRecSystem,n,{},{}];
-            indepNr = Length[indepList];
-            depNr = Length[depList];
-            If[ indepNr==0 && depNr!=0,
+            indepNr             = Length[indepList];
+            depNr               = Length[depList];
+            If[ indepNr == 0 && depNr != 0,
                 Print["Illegal coupling detected in loop body - cannot determine P-solvability!"];
                 solvable = False;
                 cfSystem = {};
-                expList = {};
+                expList  = {};
                 Continue[]
             ];
-            If[ indepNr==0 && depNr==0,
+            If[ indepNr == 0 && depNr == 0,
                 recsLeft = False;
                 Continue[]
             ];
-           (* there are still independent recs *)
+            (* there are still independent recs *)
             Do[
                 recEq = indepList[[i]];
                 rhsEq = recEq[[2]];
-                x = Union[Cases[recEq,f_[n+j_.]->f,Infinity]][[1]];
-        (*RecType Check *)
-                   (*Print["Start EqRecSolve for ", recEq," with recurrence index: ",n];*)
+                x     = Union[Cases[recEq,f_[n+j_.]->f,Infinity]][[1]];
+                (* RecType Check  *)
+                (* Print["Start EqRecSolve for ", recEq," with recurrence index: ",n]; *)
                 {solvable,cfRec,cfSolSet,exps} = EqRecSolve[recEq,n];
-                           (*Print["exps: ", exps]; Print["solvable: ",solvable ]; Print["cfRec: ",cfRec ]; Print["cfSolSet: ",cfSolSet ];*)
+                (* Print["exps: ", exps]; Print["solvable: ",solvable ]; Print["cfRec: ",cfRec ]; Print["cfSolSet: ",cfSolSet ]; *)
                 expList = Join[expList,exps];
                 If[ Not[solvable],
                     cfSystem = {};
-                    expList = {};
+                    expList  = {};
                     Continue[],
-        (*it is a solvable recs*)
-                    cfSystem = Join[cfSystem,{{cfRec,cfSolSet,exps}}];
-                    ruleX = Apply[Rule,cfRec];
+                    (* it is a solvable recs *)
+                    cfSystem     = Join[cfSystem,{{cfRec,cfSolSet,exps}}];
+                    ruleX        = Apply[Rule,cfRec];
                     newRecSystem = Complement[newRecSystem,{recEq}];    
-                            (*  Print["Start CFRulesList."];*)
-                    rulesListX = CFRulesList[newRecSystem,n,ruleX,x];
-                    cfRules = Join[cfRules,rulesListX];
+                    rulesListX   = CFRulesList[newRecSystem,n,ruleX,x];
+                    cfRules      = Join[cfRules,rulesListX];
                     newRecSystem = newRecSystem/.cfRules
                 ],
-                  {i,1,indepNr}]
+                {i,1,indepNr}]
         ];
-        (*Print["Finished computing closed forms."];*)
+        (* Print["Finished computing closed forms."]; *)
         newRecSystem = {};
-        expVars = {};
-        expDepList = {};
-        expBases = {};
+        expVars      = {};
+        expDepList   = {};
+        expBases     = {};
         If[ Not[solvable],
             Print["Not P-solvable loop!"];
             Abort[]
         ];
         (* recurrences are solvable, what about P-solvable loop? *)
-        (*Print["Start PSolvability Check for ", cfSystem, " with recIndex: ", n];*)
+        (* Print["Start PSolvability Check for ", cfSystem, " with recIndex: ", n]; *)
         {newRecSystem,expVars,expBases,expDepList} = PSolvableCheck[cfSystem,n];
-        (*Print["newRecSystem: ",newRecSystem];Print["expVars: ",expVars];Print["expBases: ",expBases];Print["expDepList: ",expDepList];*)
-        iniVarListCorresp = varList/.n->0;
-        iniVarList = Table[iniVarListCorresp[[i,1]],{i,1,Length[iniVarListCorresp]}];
+        (* Print["newRecSystem: ",newRecSystem];Print["expVars: ",expVars];Print["expBases: ",expBases];Print["expDepList: ",expDepList]; *)
+        iniVarListCorresp      = varList/.n->0;
+        iniVarList             = Table[iniVarListCorresp[[i,1]],{i,1,Length[iniVarListCorresp]}];
         {newRecSystem,finVars} = SeqToVars[newRecSystem,varList,expVars,expBases,n];
-        iniVarRules = IniValuesAndVarRules[finVars,iniVarList];
+        iniVarRules            = IniValuesAndVarRules[finVars,iniVarList];
         {newRecSystem/.iniVarRules,{n},expVars,finVars,iniVarList/.iniVarRules,expDepList}
     ]
 
