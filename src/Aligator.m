@@ -85,7 +85,7 @@ We do not expect that it works with earlier/later versions.*)
 Aligator`Private`Version = "0.5 (2010-09-14)";
 
 
-BeginPackage["Aligator`",{"Dependencies`"}];
+BeginPackage["Aligator`",{"Dependencies`","Hyper`","GosperSum`"}];
 
 
 aligator::InputError1 = "Not appropiate Aligator-input. `1` must be of the form WHILE[loop-condition, loop-body].\n
@@ -994,27 +994,27 @@ LinRecCSolve[x_[y_]==rhs_,n_]/;FreeQ[rhs,x] :=
 
 LinRecCSolve[x_[y_]==rhs_,n_] :=
     Module[ {cfinite,inHomPart,shift,newRec,newIniRules,expectedOrder,givenOrder,solSet,sol,solExponent},
-    (* 1. Check C-finiteness of rhs. If it is, return its inhom.Par. *)
-        newRec = {};
+        (* 1. Check C-finiteness of rhs. If it is, return its inhom.Par. *)
+        newRec      = {};
         newIniRules = {};
-        sol = {};
+        sol         = {};
         solExponent = {};
-        solSet = {};
+        solSet      = {};
         {cfinite,inHomPart} = CFiniteCheck[Expand[rhs],n,x];
         If[ Not[cfinite],
             Print["Illegal recurrence encountered: " <>ToString[x[y]==rhs]],
             (* 2. it is CFinite ->  shift the inhomogenous part *)
-            givenOrder = RecurrenceOrder[x[y]==rhs,n,x];
-            shift = ShiftOrder[inHomPart,n];
+            givenOrder    = RecurrenceOrder[x[y] == rhs,n,x];
+            shift         = ShiftOrder[inHomPart,n];
             expectedOrder = givenOrder+shift;
-            If[ shift==0, (* inHomPart is 0 -> original rec is CFinite *)
+            If[ shift == 0, (* inHomPart is 0 -> original rec is CFinite *)
                 newRec = x[y]==rhs,
-        (* make the recurrence CFinite *)
+                (* make the recurrence CFinite *)
                 {newRec,newIniRules} = InhomRecTransform[x[y]==rhs,n,expectedOrder]
             ];
             (* 3. solve newRec with newIniRules *)
-            solSet = SolveCFinRecurrence[{newRec,newIniRules},n];
-            sol = SolCFinConstruct[solSet,n];
+            solSet      = SolveCFinRecurrence[{newRec,newIniRules},n];
+            sol         = SolCFinConstruct[solSet,n];
             solExponent = UnsortedComplement[solSet[[2]],{1}];
         ];
         {cfinite,sol,solSet,solExponent}
@@ -1330,34 +1330,85 @@ HypergeometricQ[term_,n_] :=
 
 GosperCheckAndSolve[rhs_,x_,n_] :=
     Module[ {gosperCF,k,gosperSolvable,GosperSum,rhsMod,expVars,gosperTerm,hyperCheck,solSet,expCoeff,i,j,expList,coeffList,freeCoeff},
-        solSet = {};
+        solSet    = {};
         GosperSum = {};
-        rhsMod = rhs/.n->k;
-        expVars = {};
-        (*Print["Start HypergeometricQ."];*)
+        rhsMod    = rhs/.n->k;
+        expVars   = {};
+        (* Print["Start HypergeometricQ."]; *)
         hyperCheck = HypergeometricQ[Simplify[rhs],n];
-        (*Print["hyperCheck: ",hyperCheck];*)
+        (* Print["hyperCheck: ",hyperCheck]; *)
         If[ !hyperCheck,
             gosperSolvable = False,
-      (*Print["Start Gosper."];*)
+            (* Print["Start Gosper."]; *)
             gosperCF = fastZeil`Gosper[rhsMod,{k,0,n-1}]/.$Failed->{};
-                 (*Print["gosperCF: ",gosperCF];*)
+            (* Print["gosperCF: ",gosperCF]; *)
             If[ (gosperCF=={}),
                 gosperSolvable = False,
                 gosperSolvable = True;
-                gosperTerm = Simplify[gosperCF[[1,2]]];
-                GosperSum = x[n]==x[0]+gosperTerm;
-                expVars = Union[Cases[{GosperSum},r_^(n+i_.)->r,Infinity],Cases[{GosperSum},r_^(c_*n+i_.)->r^c,Infinity]];
-                expCoeff = Coefficient[{gosperTerm},#^n]&/@expVars;
-                freeCoeff = Simplify[x[0]+gosperTerm-Sum[expCoeff[[i,j]]*expVars[[i]]^n,{i,1,Length[expCoeff]},{j,1,Length[expCoeff[[i]]]}]];
-                coeffList = Append[expCoeff,{freeCoeff}];
-                expList = Append[expVars,1];
-                solSet = {x,expList,coeffList}
+                gosperTerm     = Simplify[gosperCF[[1,2]]];
+                GosperSum      = x[n] == x[0]+gosperTerm;
+                expVars        = Union[Cases[{GosperSum},r_^(n+i_.)->r,Infinity],Cases[{GosperSum},r_^(c_*n+i_.)->r^c,Infinity]];
+                expCoeff       = Coefficient[{gosperTerm},#^n]&/@expVars;
+                freeCoeff      = Simplify[x[0]+gosperTerm-Sum[expCoeff[[i,j]]*expVars[[i]]^n,{i,1,Length[expCoeff]},{j,1,Length[expCoeff[[i]]]}]];
+                coeffList      = Append[expCoeff,{freeCoeff}];
+                expList        = Append[expVars,1];
+                solSet         = {x,expList,coeffList}
             ]
         ];
         {gosperSolvable,GosperSum,solSet,expVars}
     ]
 
+HyperSolve[x_[y_]==rhs_,n_] :=
+    Module[ {hgTerms, solvable},
+        eqn = x[y]==rhs;
+        Print[Hyper[eqn,x[n],Solutions->All]];
+        hgTerms = Hyper[eqn,x[n],Solutions->All];
+        hgTerms = ToHg2[#,n]& /@ hgTerms;
+        If [hgTerms == {},
+            solvable = False,
+            solvable = True;
+            recOrder = RecurrenceOrder[eqn,n,x];
+            matrix   = Table[hgTerms,{n,0,recOrder-1}];
+            sval     = Table[x[i],{i,0,recOrder-1}];
+            coeff    = LinearSolve[matrix,sval];
+            cf       = hgTerms.coeff;
+            Print["recOrder: ", recOrder];
+            Print["Solutions: ", hgTerms];
+            Print["Coefficents: ", coeff];
+            Print["Closed form: ", cf];
+            exp = Union[Cases[{cf},r_^(n+i_.)->r,Infinity],Cases[{cf},r_^(c_*n+i_.)->r^c,Infinity]];
+            Print[exp];
+        ];
+        (* TODO: clarify what needs to be returned *)
+        {solvable,cf,hgTerms}
+    ]
+
+(* Copied from Hyper.m *)
+(* Cannot deal with expressions like -1-n *)
+ToHg[f_, n_] :=
+    Module[{ff = Factor[f]},
+        ff = ff /. (a_. n + b_.)^k_. -> a^k (n + b/a)^k;
+        ff = If[Head[ff] === Times, List @@ ff, {ff}];
+        ff = Replace[#, (n + b_.)^k_. :> (Factorial[b+n-1])^k]& /@ ff;
+        ff = Replace[#, c_ /; FreeQ[c, n] -> c^n]& /@ ff;
+        ff = Times @@ ff;
+        Print["ff: ", ff];
+        (* ff = a0 ff / (ff /. n -> n0); *)
+        Return[GosperSum`FS[ff, n]]
+    ];
+
+(* Experimental *)
+ToHg2[f_, n_] :=
+    Module[{ff = FactorTermsList[f]},
+        (* ff = ff /. (a_. n + b_.)^k_. -> a^k (n + b/a)^k; *)
+        (* ff = If[Head[ff] === Times, List @@ ff, {ff}]; *)
+        ff = Replace[#, (n + b_.)^k_. :> (Factorial[b+n-1])^k]& /@ ff;
+        ff = Replace[#, c_ /; FreeQ[c, n] -> c^n]& /@ ff;
+        ff = Times @@ ff;
+        Print["ff: ", ff];
+        (* ff = a0 ff / (ff /. n -> n0); *)
+        Return[GosperSum`FS[ff, n]]
+    ];
 
 (* ********************************************************************************** *)
 (* Input: system of recurrences {x[n+1]==x[n]+1, y[n+1]==y[n]+x[n]} ****************** *)
@@ -1939,10 +1990,8 @@ GroebnerBasis[RecDep/.RewriteRules,SimpleRecVars]
 
 
 Needs["Dependencies`"]
-
-
 Needs["zb`"]
-
+Needs["Hyper`"]
 
 (*<<Dependencies.m*)
 
