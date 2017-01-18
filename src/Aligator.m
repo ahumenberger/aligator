@@ -1360,8 +1360,7 @@ GosperCheckAndSolve[rhs_,x_,n_] :=
 
 HyperSolve[x_[y_]==rhs_,n_] :=
     Module[ {hgTerms, solvable},
-        eqn = x[y]==rhs;
-        Print[Hyper[eqn,x[n],Solutions->All]];
+        eqn     = x[y] == rhs;
         hgTerms = Hyper[eqn,x[n],Solutions->All];
         hgTerms = ToHg2[#,n]& /@ hgTerms;
         If [hgTerms == {},
@@ -1372,15 +1371,20 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             sval     = Table[x[i],{i,0,recOrder-1}];
             coeff    = LinearSolve[matrix,sval];
             cf       = hgTerms.coeff;
-            Print["recOrder: ", recOrder];
             Print["Solutions: ", hgTerms];
             Print["Coefficents: ", coeff];
             Print["Closed form: ", cf];
-            exp = Union[Cases[{cf},r_^(n+i_.)->r,Infinity],Cases[{cf},r_^(c_*n+i_.)->r^c,Infinity]];
-            Print[exp];
+            factorList = #[[1]]^#[[2]] & /@ FactorList[cf];
+            polyCoeff  = Times @@ Cases[factorList, Except[(n + b_.)!^k_.]];
+            expVars    = Union[Cases[{polyCoeff},r_^(n+i_.)->r,Infinity],Cases[{cf},r_^(c_*n+i_.)->r^c,Infinity]];
+            expCoeff   = Coefficient[{polyCoeff},#^n] & /@ expVars;
+            factCoeff  = Simplify[cf / polyCoeff];
+            Print["Exponential sequences: ", expVars];
+            Print["Exponectial coefficients: ", expCoeff];
+            Print["Factorial coefficients: ", factCoeff];
+            solSet = {x,expVars,expCoeff,factCoeff}
         ];
-        (* TODO: clarify what needs to be returned *)
-        {solvable,cf,hgTerms}
+        {solvable,cf,solSet,expVars}
     ]
 
 (* Copied from Hyper.m *)
@@ -1392,7 +1396,6 @@ ToHg[f_, n_] :=
         ff = Replace[#, (n + b_.)^k_. :> (Factorial[b+n-1])^k]& /@ ff;
         ff = Replace[#, c_ /; FreeQ[c, n] -> c^n]& /@ ff;
         ff = Times @@ ff;
-        Print["ff: ", ff];
         (* ff = a0 ff / (ff /. n -> n0); *)
         Return[GosperSum`FS[ff, n]]
     ];
@@ -1405,7 +1408,6 @@ ToHg2[f_, n_] :=
         ff = Replace[#, (n + b_.)^k_. :> (Factorial[b+n-1])^k]& /@ ff;
         ff = Replace[#, c_ /; FreeQ[c, n] -> c^n]& /@ ff;
         ff = Times @@ ff;
-        Print["ff: ", ff];
         (* ff = a0 ff / (ff /. n -> n0); *)
         Return[GosperSum`FS[ff, n]]
     ];
