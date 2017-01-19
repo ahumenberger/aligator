@@ -567,18 +567,18 @@ RecSystem[assgn__] :=
     Module[ {assgAll,recAssg,n = Unique[],recVars,recEqSystem, recVarList,finalRecEqSystem,finalRecVarList,flattenRecEqSystem,flattenRecVarList,allVars,recChangedVarList,notRecVar,notRecChangedVars,removeVar,normVal,normalizedRecEqSystem,normalizedRecVarList,normedVars,shiftVarsNormed,i},
         assgAll                   = RecEqs[assgn,{}];
         {recAssg,recVars}         = FlattenBody[assgAll,{},{}];
-        {recEqSystem, recVarList} = RecRelations[recAssg,n,{},{},recVars];
+        {recEqSystem,recVarList} = RecRelations[recAssg,n,{},{},recVars];
+        {recEqSystem,recVarList}  = FlattenRecurrences[recEqSystem,n,recEqSystem,recVarList];
         recEqSystem               = recEqSystem/.OptionValue[Aligator,LoopCounter]->n;
         recChangedVars            = ProperRecVars[recEqSystem,n,{}];
         If[ recChangedVars == {},
             Print["No recursively changed variables! Not P-solvable Loop!"];
             Abort[]
         ];
-        {flattenRecEqSystem,flattenRecVarList} = FlattenRecurrences[recEqSystem,n,recEqSystem,recVarList];
         (* make shifts, if index contains minus operations, i.e. n-1 should be shifted to n *)
-        {finalRecEqSystem,finalRecVarList} = ShiftRec[{flattenRecEqSystem,flattenRecVarList},n];
-        (* {finalRecEqSystem,finalRecVarList} = ShiftRec[flattenRecEqSystem,n,flattenRecVarList,{}]; *)
-        allVars           = Union[Table[finalRecVarList[[i,2]],{i,1,Length[flattenRecVarList]}]];
+        {finalRecEqSystem,finalRecVarList} = ShiftRec[{recEqSystem,recVarList},n];
+        (* {finalRecEqSystem,finalRecVarList} = ShiftRec[recEqSystem,n,recVarList,{}]; *)
+        allVars           = Union[Table[finalRecVarList[[i,2]],{i,1,Length[recVarList]}]];
         notRecChangedVars = Complement[allVars,recChangedVars];
         recChangedVarList = finalRecVarList;
         Do[
@@ -1400,7 +1400,7 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             Print["Exponential sequences: ", expVars];
             Print["Exponential coefficients: ", expCoeff];
             Print["Factorial coefficients: ", factCoeff];
-            solSet = {x,expVars,{expCoeff},factCoeff}
+            solSet = {x,expVars,List[#]&/@expCoeff,factCoeff}
         ];
         {solvable,cf,solSet,expVars}
     ]
@@ -1594,19 +1594,20 @@ PSolvableCheck[sys_,n_] :=
 SeqToVars[sys_,varList_,expVars_,expBases_,n_] :=
     Module[ {i,newRecSystem,varCorresp,x,cfRecIndex,seqVal,recEqX,shift,finVars,newEq,expVarRules,j},
         newRecSystem = {};
-        finVars = {};
+        finVars      = {};
         Do[
-        varCorresp = varList[[i]];
-        x = varCorresp[[1,0]];
-        seqVal = varCorresp[[1,1]];
-        recEqX = Cases[{sys},x[_]==_,Infinity];
-        cfRecIndex = recEqX[[1,1,1]];
-        shift = seqVal-cfRecIndex;
-        expVarRules = Table[expVars[[j]]->expBases[[j]]^shift*expVars[[j]],{j,1,Length[expVars]}];
-        newEq = ((recEqX/.n->n+shift)/.expVarRules)/.Apply[Rule,varCorresp];
-        finVars = Append[finVars,varCorresp[[2]]];
-        newRecSystem = Join[newRecSystem,newEq],
-        {i,1,Length[varList]}];
+            varCorresp   = varList[[i]];
+            x            = varCorresp[[1,0]];
+            seqVal       = varCorresp[[1,1]];
+            recEqX       = Cases[{sys},x[_] == _,Infinity];
+            cfRecIndex   = recEqX[[1,1,1]];
+            shift        = seqVal-cfRecIndex;
+            expVarRules  = Table[expVars[[j]]->expBases[[j]]^shift*expVars[[j]],{j,1,Length[expVars]}];
+            newEq        = ((recEqX/.n->n+shift)/.expVarRules)/.Apply[Rule,varCorresp];
+            finVars      = Append[finVars,varCorresp[[2]]];
+            newRecSystem = Join[newRecSystem,newEq],
+            {i,1,Length[varList]}
+        ];
         {newRecSystem,finVars}
     ]
 
