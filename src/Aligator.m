@@ -1359,7 +1359,7 @@ GosperCheckAndSolve[rhs_,x_,n_] :=
     ]
 
 HyperSolve[x_[y_]==rhs_,n_] :=
-    Module[ {hgTerms, solvable},
+    Module[ {eqn,hgTerms,solvable,recOrder,matrix,sval,coeff,cf,factorList,polyCoeff,expVars,expCoeff,factCoeff,solSet},
         eqn     = x[y] == rhs;
         hgTerms = Hyper[eqn,x[n],Solutions->All];
         hgTerms = ToHg2[#,n]& /@ hgTerms;
@@ -1369,18 +1369,19 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             recOrder = RecurrenceOrder[eqn,n,x];
             matrix   = Table[hgTerms,{n,0,recOrder-1}];
             sval     = Table[x[i],{i,0,recOrder-1}];
-            coeff    = LinearSolve[matrix,sval];
-            cf       = hgTerms.coeff;
+            expCoeff = LinearSolve[matrix,sval];
+            cf       = hgTerms.expCoeff;
             Print["Solutions: ", hgTerms];
-            Print["Coefficents: ", coeff];
+            Print["Coefficents: ", Simplify[expCoeff]];
             Print["Closed form: ", cf];
-            factorList = #[[1]]^#[[2]] & /@ FactorList[cf];
-            polyCoeff  = Times @@ Cases[factorList, Except[(n + b_.)!^k_.]];
-            expVars    = Union[Cases[{polyCoeff},r_^(n+i_.)->r,Infinity],Cases[{cf},r_^(c_*n+i_.)->r^c,Infinity]];
-            expCoeff   = Coefficient[{polyCoeff},#^n] & /@ expVars;
-            factCoeff  = Simplify[cf / polyCoeff];
+            expVars    = Union[
+                            Cases[hgTerms,r_^(n+i_.)->r,Infinity],
+                            Cases[hgTerms,r_^(c_*n+i_.)->r^c,Infinity]
+                        ];
+            (* TODO What if solutions of recurrence do not exhibit the same factorial coefficient? *)
+            factCoeff  = Cases[hgTerms,(n + b_.)!^k_.,Infinity];
             Print["Exponential sequences: ", expVars];
-            Print["Exponectial coefficients: ", expCoeff];
+            Print["Exponential coefficients: ", expCoeff];
             Print["Factorial coefficients: ", factCoeff];
             solSet = {x,expVars,expCoeff,factCoeff}
         ];
@@ -1615,10 +1616,29 @@ EqRecSolve[x_[y_]==rhs_,n_] :=
         rhsEq       = rhs/.n->n-needShift;
         recEqSolved = recEq/.n->n-needShift;
         Print["recOrder: ",recOrder];
-        Which[
+        If[recOrder < 1,
+            Print["[Not supported] recurrence order is < 1 in ",recEq];
+            solvable = False,
+            (* Try hypergeometric *)
+            {solvable,cfRec,solSet,exps} = HyperSolve[recEqSolved,n];
+            If[Not[solvable],
+                (* Try C-finite *)
+                {solvable,cfRec,solSet,exps} = LinRecCSolve[recEqSolved,n];
+                If[Not[solvable] && recOrder == 1,
+                    (* Try Gosper *)
+                    If[NumberQ[gosperCoeff] &&  gosperCoeff == 1,
+                        rhsTerm = rhsEq-x[n];        
+                        {solvable,cfRec,solSet,exps} = GosperCheckAndSolve[rhsTerm,x,n];
+                    ];
+                ];
+            ];
+        ];
+        If[solvable,
+            {cfRec,solSet} = {ShiftBackClosedForm[cfRec,n,needShift],ShiftBackSolSet[solSet,n,needShift]}
+        ];
+        (* Which[
             recOrder < 1,
-                Print["Not supported rec: ",recEq];
-                solvable = False,
+                
             recOrder > 1, 
                 (* Print["start LinRecCSolve."]; *)
                 {solvable,cfRec,solSet,exps} = LinRecCSolve[recEqSolved,n];
@@ -1644,7 +1664,7 @@ EqRecSolve[x_[y_]==rhs_,n_] :=
                 If[ solvable,
                     {cfRec,solSet} = {ShiftBackClosedForm[cfRec,n,needShift],ShiftBackSolSet[solSet,n,needShift]}
                 ]
-        ];
+        ]; *)
         {solvable,cfRec,solSet,exps}
     ]
 
