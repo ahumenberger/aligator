@@ -1072,29 +1072,31 @@ CFiniteCheck[x_[_]*c_,n_,x_] :=
 
 CFiniteCheck[rhs_,n_,x_] :=
     Module[ {xPositions,xTermPositions,xTerm,rhsPos,i,sw = 1,rhsInHom,inHomPart,cFinite,inHomCFinite},
-        rhsInHom = rhs;
-        inHomPart = rhs;
-        xPositions = Position[rhs,x[_]];
+        Print["CFiniteCheck:", rhs,n];
+        rhsInHom       = rhs;
+        inHomPart      = rhs;
+        xPositions     = Position[rhs,x[_]];
         xTermPositions = #[[1]]&/@xPositions;
-        Do[rhsPos = xTermPositions[[i]];
-           xTerm = rhs[[rhsPos]];
-           rhsInHom = rhsInHom-xTerm;
-           sw = CheckTerm[xTerm,n,x];
-           If[ sw==0,
-               cFinite = False;
-               Continue[]
-           ],
-        {i,1,Length[xTermPositions]}
+        Do[
+            rhsPos   = xTermPositions[[i]];
+            xTerm    = rhs[[rhsPos]];
+            rhsInHom = rhsInHom-xTerm;
+            sw       = CheckTerm[xTerm,n,x];
+            If[ sw==0,
+                cFinite = False;
+                Continue[]
+            ],
+            {i,1,Length[xTermPositions]}
         ];
         If[ sw==1,
-                 (*check C-finiteness of rhsInHom*)
+            (* check C-finiteness of rhsInHom *)
             inHomCFinite = InhomCCheck[rhsInHom,n,1];
             If[ inHomCFinite ==1, 
-               (* inHom part is C-finite *)
-                cFinite = True;
+                (* inHom part is C-finite *)
+                cFinite   = True;
                 inHomPart = Expand[Simplify[rhsInHom]],
-        (* inHom part is not C-finite *)
-                cFinite = False;
+                (* inHom part is not C-finite *)
+                cFinite   = False;
                 inHomPart = rhs
             ]
         ];
