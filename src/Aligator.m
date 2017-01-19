@@ -216,7 +216,7 @@ Aligator[c_] :=
             Abort[]
         ];
         (* correct input - proceed! *)
-        (* ifCheck = CheckIfSeq[c]; *)
+        ifCheck = CheckIfSeq[c];
         (* Print["If-statements: ",ifCheck]; *)
         loops = IfWhileTransform[c,Body[],Body[]];
         (* Print["Number of inner loops:", Length[loops]]; *)
@@ -1024,6 +1024,21 @@ LinRecCSolve[x_[y_]==rhs_,n_] :=
 UnsortedComplement[x_List,y__List] :=
     Replace[x,Dispatch[(#:>Sequence[])&/@Union[y]],1]
 
+(* TODO Not used at the moment *)
+HomogeneousTransform[x_[y_]==rhs_,n_] :=
+    Module[{newRec,newIniRules,shift,givenOrder,expectedOrder},
+        newRec      = {};
+        newIniRules = {};
+        shift       = ShiftOrder[inHomPart,n];
+        If[shift == 0, (* inHomPart is 0 -> original rec is CFinite *)
+            newRec = x[y]==rhs,
+            (* make the recurrence CFinite *)
+            givenOrder  = RecurrenceOrder[x[y] == rhs,n,x];
+            expectedOrder = givenOrder+shift;
+            {newRec,newIniRules} = InhomRecTransform[x[y]==rhs,n,expectedOrder]
+        ];
+        {newRec,newIniRules}
+    ]
 
 (* ***************************************************************************** *)
 (* Check the C-finiteness of the rhs of recurrence of x[n] (i.e. x[n+_)=rhs).    *)
@@ -1370,7 +1385,7 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             matrix   = Table[hgTerms,{n,0,recOrder-1}];
             sval     = Table[x[i],{i,0,recOrder-1}];
             expCoeff = LinearSolve[matrix,sval];
-            cf       = hgTerms.expCoeff;
+            cf       = x[n] == hgTerms.expCoeff;
             Print["Solutions: ", hgTerms];
             Print["Coefficents: ", Simplify[expCoeff]];
             Print["Closed form: ", cf];
@@ -1383,7 +1398,7 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             Print["Exponential sequences: ", expVars];
             Print["Exponential coefficients: ", expCoeff];
             Print["Factorial coefficients: ", factCoeff];
-            solSet = {x,expVars,expCoeff,factCoeff}
+            solSet = {x,expVars,{expCoeff},factCoeff}
         ];
         {solvable,cf,solSet,expVars}
     ]
@@ -1471,7 +1486,8 @@ RecSolve[recSystem_,varList_,{recVar_}] :=
                     cfRules      = Join[cfRules,rulesListX];
                     newRecSystem = newRecSystem/.cfRules
                 ],
-                {i,1,indepNr}]
+                {i,1,indepNr}
+            ]
         ];
         (* Print["Finished computing closed forms."]; *)
         newRecSystem = {};
@@ -1507,65 +1523,65 @@ CFRulesList[sys_,n_,ruleX_,x_] :=
 
 PSolvableCheck[sys_,n_] :=
     Module[ {x,y,recEq,expVars,newRecSystem,newRecEq,k,i,j,expBases,expCoeffList,Psolvable,polyCoeff,freeCoeff,cfSystem,expSeq,expDepList,solSet,coeffList,coeffTerm,expSeqBases},
-        cfSystem = sys;
-        expDepList = {};
+        cfSystem     = sys;
+        expDepList   = {};
         newRecSystem = {};
-        expVars = {};
-        expBases = {};
+        expVars      = {};
+        expBases     = {};
         (* Check: polynomial cfSystem - linear combination of exponentials and polys in n*)
         Do[
-        recEq = cfSystem[[i,1]];
-        solSet = cfSystem[[i,2]];
-        expCoeffList = Flatten[solSet[[3]]];
-        expBases = cfSystem[[i,3]];
-        (*expCoeffList=Coefficient[recEq[[2]],#^n&/@expBases];*)
-        polyCoeff = Apply[And,Table[PolynomialQ[expCoeffList[[j]],n],{j,1,Length[expCoeffList]}]];
-        If[ Not[polyCoeff],
-            Print["Not P-solvable loop! Not polynomial closed forms!"];
-            Abort[]
-        ],
-        {i,1,Length[cfSystem]}
+            recEq        = cfSystem[[i,1]];
+            solSet       = cfSystem[[i,2]];
+            expCoeffList = Flatten[solSet[[3]]];
+            expBases     = cfSystem[[i,3]];
+            polyCoeff    = Apply[And,Table[PolynomialQ[expCoeffList[[j]],n],{j,1,Length[expCoeffList]}]];
+            (* expCoeffList = Coefficient[recEq[[2]],#^n&/@expBases]; *)
+            If[ Not[polyCoeff],
+                Print["Not P-solvable loop! Not polynomial closed forms!"];
+                Abort[]
+            ],
+            {i,1,Length[cfSystem]}
         ];
         (*check algebraic dependencies*)
-        expBases = Apply[Join,Table[cfSystem[[i,3]],{i,1,Length[cfSystem]}]];
-        expSeq = #^n&/@expBases;
+        expBases    = Apply[Join,Table[cfSystem[[i,3]],{i,1,Length[cfSystem]}]];
+        expSeq      = #^n&/@expBases;
         expSeqBases = expBases;
-        If[ expBases== {},(*Psolvable*)
+        If[ expBases == {},(*Psolvable*)
             newRecSystem = Table[cfSystem[[i,1]],{i,1,Length[cfSystem]}],
             (* ELSE: there are exponential sequences -> get Dependencies *)
             y = Unique[];
             expDepList =(*Dependencies`Private`*) Dependencies[expSeq,y,Variables->{n}];
             If[ expDepList=={}, 
-            (* no alg. dep -> not Psolvable *)
+                (* no alg. dep -> not Psolvable *)
                 Print["Not P-solvable loop! No algebraic dependencies among exponentials!"];
                 Abort[],
-            (*Psolvable*)
-                expVars = Table[y[i],{i,1,Length[expSeq]}];
+                (*Psolvable*)
+                expVars    = Table[y[i],{i,1,Length[expSeq]}];
                 expDepList = Equal[#,0]&/@expDepList;
                 (* rewrite exponentials in cfSystem by the new variables *)
                 k = 0;
                 (* counter of the nr. of vars stnading for exponential seq, i.e. max value is Length[expSeq]*)
                 Do[
-                recEq = cfSystem[[i,1]];
-                solSet = cfSystem[[i,2]];
-                expBases = cfSystem[[i,3]];
-                coeffTerm = 0;
-                If[ expBases== {},
-                    newRecEq = recEq,
-             (* otherwise, it has exponentials *)
-                    Do[
-                        coeffList = solSet[[3,j]];
-                        If[ solSet[[2,j]]==1,
-                            coeffTerm = coeffTerm+Simplify[Sum[coeffList[[u]]*n^(u-1),{u,1,Length[coeffList]}]],
-                            k = k+1;
-                            coeffTerm = coeffTerm+Simplify[Sum[coeffList[[u]]*n^(u-1),{u,1,Length[coeffList]}]]*y[k]
-                        ],
-                    {j,1,Length[solSet[[2]]]}
-                      ];
-                    newRecEq = recEq[[1]]==coeffTerm
-                ];
-                newRecSystem = Append[newRecSystem,newRecEq],
-                {i,1,Length[cfSystem]}
+                    recEq     = cfSystem[[i,1]];
+                    solSet    = cfSystem[[i,2]];
+                    expBases  = cfSystem[[i,3]];
+                    coeffTerm = 0;
+                    If[ expBases == {},
+                        newRecEq = recEq,
+                        (* otherwise, it has exponentials *)
+                        Do[
+                            coeffList = solSet[[3,j]];
+                            If[ solSet[[2,j]]==1,
+                                coeffTerm = coeffTerm+Simplify[Sum[coeffList[[u]]*n^(u-1),{u,1,Length[coeffList]}]],
+                                k = k+1;
+                                coeffTerm = coeffTerm+Simplify[Sum[coeffList[[u]]*n^(u-1),{u,1,Length[coeffList]}]]*y[k]
+                            ],
+                            {j,1,Length[solSet[[2]]]}
+                        ];
+                        newRecEq = recEq[[1]]==coeffTerm
+                    ];
+                    newRecSystem = Append[newRecSystem,newRecEq],
+                    {i,1,Length[cfSystem]}
                 ]
             ]
         ];
@@ -1604,9 +1620,9 @@ SeqToVars[sys_,varList_,expVars_,expBases_,n_] :=
 
 EqRecSolve[x_[y_]==rhs_,n_] :=
     Module[ {recOrder,recEq,cfRec,exps,solvable,gosperCoeff,rhsTerm,needShift,rhsEq,recEqSolved,solSet},
-        Print["In EqRecSolve with ", recEq];
+        (* Print["In EqRecSolve with ", recEq]; *)
         recEq     = x[y] == rhs;
-        solvable  = True;
+        solvable  = False;
         recOrder  = RecurrenceOrder[recEq,n,x];
         needShift = y-(n+recOrder);
         (* shift it to its order first, if needed. E.g. x[n+2]==x[n+1]+1 should be solved as x[n+1]==x[n]+1 *)
@@ -1615,22 +1631,23 @@ EqRecSolve[x_[y_]==rhs_,n_] :=
         exps        = {};
         rhsEq       = rhs/.n->n-needShift;
         recEqSolved = recEq/.n->n-needShift;
-        Print["recOrder: ",recOrder];
+        (* Print["recOrder: ",recOrder]; *)
         If[recOrder < 1,
             Print["[Not supported] recurrence order is < 1 in ",recEq];
             solvable = False,
-            (* Try hypergeometric *)
-            {solvable,cfRec,solSet,exps} = HyperSolve[recEqSolved,n];
-            If[Not[solvable],
-                (* Try C-finite *)
-                {solvable,cfRec,solSet,exps} = LinRecCSolve[recEqSolved,n];
-                If[Not[solvable] && recOrder == 1,
-                    (* Try Gosper *)
-                    If[NumberQ[gosperCoeff] &&  gosperCoeff == 1,
-                        rhsTerm = rhsEq-x[n];        
-                        {solvable,cfRec,solSet,exps} = GosperCheckAndSolve[rhsTerm,x,n];
-                    ];
+            (* Try C-finite *)
+            {solvable,cfRec,solSet,exps} = LinRecCSolve[recEqSolved,n];
+            If[Not[solvable] && recOrder == 1,
+                (* Try Gosper *)
+                gosperCoeff = Coefficient[rhsEq,x[n]];
+                If[NumberQ[gosperCoeff] &&  gosperCoeff == 1,
+                    rhsTerm = rhsEq-x[n];        
+                    {solvable,cfRec,solSet,exps} = GosperCheckAndSolve[rhsTerm,x,n];
                 ];
+            ];
+            If[Not[solvable],
+                (* Try hypergeometric *)
+                {solvable,cfRec,solSet,exps} = HyperSolve[recEqSolved,n];
             ];
         ];
         If[solvable,
