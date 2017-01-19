@@ -197,7 +197,7 @@ If[ $Notebooks,
 (* *************************************************** *)
 
 
-Options[Aligator] = {IniVal->{}};
+Options[Aligator] = {IniVal->{},LoopCounter->n};
 
 
 Aligator[c_,IniVal->{seq_}] :=
@@ -568,6 +568,7 @@ RecSystem[assgn__] :=
         assgAll                   = RecEqs[assgn,{}];
         {recAssg,recVars}         = FlattenBody[assgAll,{},{}];
         {recEqSystem, recVarList} = RecRelations[recAssg,n,{},{},recVars];
+        recEqSystem               = recEqSystem/.OptionValue[Aligator,LoopCounter]->n;
         recChangedVars            = ProperRecVars[recEqSystem,n,{}];
         If[ recChangedVars == {},
             Print["No recursively changed variables! Not P-solvable Loop!"];
@@ -1072,7 +1073,6 @@ CFiniteCheck[x_[_]*c_,n_,x_] :=
 
 CFiniteCheck[rhs_,n_,x_] :=
     Module[ {xPositions,xTermPositions,xTerm,rhsPos,i,sw = 1,rhsInHom,inHomPart,cFinite,inHomCFinite},
-        Print["CFiniteCheck:", rhs,n];
         rhsInHom       = rhs;
         inHomPart      = rhs;
         xPositions     = Position[rhs,x[_]];
