@@ -1391,19 +1391,19 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             sval     = Table[x[i],{i,0,recOrder-1}];
             expCoeff = LinearSolve[matrix,sval];
             cf       = x[n] == hgTerms.expCoeff;
-            Print["Solutions: ", hgTerms];
-            Print["Coefficents: ", Simplify[expCoeff]];
-            Print["Closed form: ", cf];
+            (* Print["Solutions: ", hgTerms]; *)
+            (* Print["Coefficents: ", Simplify[expCoeff]]; *)
+            (* Print["Closed form: ", cf]; *)
             expVars    = Union[
                             Cases[hgTerms,r_^(n+i_.)->r,Infinity],
                             Cases[hgTerms,r_^(c_*n+i_.)->r^c,Infinity]
                         ];
             (* TODO What if solutions of recurrence do not exhibit the same factorial coefficient? *)
-            factCoeff  = Cases[hgTerms,(n + b_.)!^k_.,Infinity];
-            Print["Exponential sequences: ", expVars];
-            Print["Exponential coefficients: ", expCoeff];
-            Print["Factorial coefficients: ", factCoeff];
-            solSet = {x,expVars,List[#]&/@expCoeff,factCoeff}
+            factCoeff  = Union[Cases[hgTerms,(n + b_.)!^k_.,Infinity]];
+            (* Print["Exponential sequences: ", expVars]; *)
+            (* Print["Exponential coefficients: ", expCoeff]; *)
+            (* Print["Factorial coefficients: ", factCoeff]; *)
+            solSet = {x,expVars,List[#]&/@expCoeff,{factCoeff}}
         ];
         {solvable,cf,solSet,expVars}
     ]
