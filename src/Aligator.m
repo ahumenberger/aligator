@@ -201,10 +201,10 @@ Options[Aligator] = {IniVal->{},LoopCounter->n};
 
 RecEqs[{seq_:CompoundExpression[]}] := RecEqs[seq,{}]
 
-Aligator[c_, opts_ : OptionPattern] :=
+Aligator[c_, opts__ : OptionPattern[]] :=
     Module[ {invariants = {},givenIniRecs,givenIniRules},
-        (* Set LoopCounter explicitely, otherwise default value is used. Why?! *)
-        SetOptions[Aligator,LoopCounter->OptionValue[Aligator,LoopCounter]];
+        (* Specific option handling to avoid evaluation of initial values. *)
+        SetOptions[Aligator,LoopCounter->OptionValue[Aligator,Unevaluated[{opts}],LoopCounter]];
         invariants    = Aligator[c];
         givenIniRecs  = OptionValue[Aligator,Unevaluated[{opts}],IniVal,RecEqs];
         givenIniRules = InitialSubstitutions[givenIniRecs,{}];
