@@ -199,11 +199,14 @@ If[ $Notebooks,
 
 Options[Aligator] = {IniVal->{},LoopCounter->n};
 
+RecEqs[{seq_:CompoundExpression[]}] := RecEqs[seq,{}]
 
-Aligator[c_,IniVal->{seq_}] :=
+Aligator[c_, opts_ : OptionPattern] :=
     Module[ {invariants = {},givenIniRecs,givenIniRules},
-        invariants = Aligator[c];
-        givenIniRecs = RecEqs[seq,{}];
+        (* Set LoopCounter explicitely, otherwise default value is used. Why?! *)
+        SetOptions[Aligator,LoopCounter->OptionValue[Aligator,LoopCounter]];
+        invariants    = Aligator[c];
+        givenIniRecs  = OptionValue[Aligator,Unevaluated[{opts}],IniVal,RecEqs];
         givenIniRules = InitialSubstitutions[givenIniRecs,{}];
         Simplify[invariants/.givenIniRules]
     ]
