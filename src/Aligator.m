@@ -1594,6 +1594,113 @@ PSolvableCheck[sys_,n_] :=
     ];
 
 
+(* EXPERIMENTAL. Try to get a cleaner PSolvableCheck *)
+CleanPSolvableCheck[sys_,n_] :=
+    Module[ {x,y,recEq,expVars,newRecSystem,newRecEq,k,i,j,expBases,expCoeffList,Psolvable,polyCoeff,freeCoeff,cfSystem,expSeq,expDepList,solSet,coeffList,coeffTerm,expSeqBases,f},
+        cfSystem     = sys;
+        expDepList   = {};
+        newRecSystem = {};
+        expVars      = {};
+        expBases     = {};
+        auxVars      = {};
+        (* Check: polynomial cfSystem - linear combination of exponentials and polys in n*)
+        Do[
+            recEq        = cfSystem[[i,1]];
+            solSet       = cfSystem[[i,2]];
+            expCoeffList = Flatten[solSet[[3]]];
+            expBases     = cfSystem[[i,3]];
+            polyCoeff    = Apply[And,Table[PolynomialQ[expCoeffList[[j]],n],{j,1,Length[expCoeffList]}]];
+            (* expCoeffList = Coefficient[recEq[[2]],#^n&/@expBases]; *)
+            If[ Not[polyCoeff],
+                Print["Not P-solvable loop! Not polynomial closed forms!"];
+                Abort[]
+            ],
+            {i,1,Length[cfSystem]}
+        ];
+        (*check algebraic dependencies*)
+        expBases    = Apply[Join,Table[cfSystem[[i,3]],{i,1,Length[cfSystem]}]];
+        expSeq      = #^n&/@expBases;
+        expSeqBases = expBases;
+        If[ expBases == {},(*Psolvable*)
+            newRecSystem = Table[cfSystem[[i,1]],{i,1,Length[cfSystem]}],
+            (* ELSE: there are exponential sequences -> get Dependencies *)
+            y = Unique[];
+            expDepList =(*Dependencies`Private`*) Dependencies[expSeq,y,Variables->{n}];
+            If[ expDepList=={}, 
+                (* no alg. dep -> not Psolvable *)
+                Print["Not P-solvable loop! No algebraic dependencies among exponentials!"];
+                Abort[],
+                (*Psolvable*)
+                expVars    = Table[y[i],{i,1,Length[expSeq]}];
+                Print["A: ",expVars];
+                Print["B: ",expSeq];
+                expDepList = Equal[#,0]&/@expDepList;
+                (* rewrite exponentials in cfSystem by the new variables *)
+                k = 0;
+                (* counter of the nr. of vars stnading for exponential seq, i.e. max value is Length[expSeq]*)
+                factVarRules = {};
+                Do[
+                    recEq     = cfSystem[[i,1]];
+                    solSet    = cfSystem[[i,2]];
+ 
+                    If[Length[solSet] > 3,
+                        Do[
+                            fact = solSet[[i,1,1]];
+                            If[Not[MatchQ[factVarRules,KeyValuePattern[fact -> x_]]],
+                                f = Unique[];
+                                AppendTo[auxVars,f];
+                                AppendTo[factVarRules,fact -> f]
+                            ],
+                            {i,4,Length[solSet]}
+                        ]
+                    ];
+                    Print["factVarRules: ",factVarRules];
+                    (* solSet = solSet/.factVarRules; *)
+                    (* Print[solSet]; *)
+
+                    Print["SolSet: ",solSet[[2;;]]];
+                    recurrence = solSet[[2;;]];
+                    (* recurrence[[1]] = DeleteCases[recurrence[[1]],1]; *)
+                    recurrence[[1]] = Replace[recurrence[[1]], x_?(# != 1&) :> y[++k],{1}];
+                    recurrence[[1]] = Replace[recurrence[[1]],{} -> {{1}}];
+                    Print["Recurrence: ",recurrence];
+
+                    var = If[solSet[[2]] == {},
+                            {1},
+                            Table[y[k+i],{i,1,Length[solSet[[2]]]}]
+                          ];
+                    factVars = Table[f[i],{i,1,Length[solSet]-3}];
+                    Print[Dot @@ recurrence];
+                    (* var = If[solSet] *)
+                    (* Print[]; *)
+                    (* Print[var.solSet[[3]].solSet[[4]]]; *)
+        (*             expBases  = cfSystem[[i,3]];
+                    coeffTerm = 0;
+                    If[ expBases == {},
+                        newRecEq = recEq,
+                        (* otherwise, it has exponentials *)
+                        Do[
+                            coeffList = solSet[[3,j]];
+                            If[ solSet[[2,j]]==1,
+                                coeffTerm = coeffTerm+Simplify[Sum[coeffList[[u]]*n^(u-1),{u,1,Length[coeffList]}]],
+                                k = k+1;
+                                coeffTerm = coeffTerm+Simplify[Sum[coeffList[[u]]*n^(u-1),{u,1,Length[coeffList]}]]*y[k]
+                            ],
+                            {j,1,Length[solSet[[2]]]}
+                        ];
+                        newRecEq = recEq[[1]]==coeffTerm
+                    ]; *)
+                    newRecSystem = Append[newRecSystem,recEq[[1]] == Dot @@ recurrence],
+                    {i,1,Length[cfSystem]}
+                ];
+                newRecSystem = newRecSystem/.factVarRules
+            ]
+        ];
+        Print["Final: ", newRecSystem];
+        Print["ExpVars: ", expVars];
+        {newRecSystem,expVars,expSeqBases,expDepList,auxVars}
+    ];
+
 SeqToVars[sys_,varList_,expVars_,expBases_,n_] :=
     Module[ {i,newRecSystem,varCorresp,x,cfRecIndex,seqVal,recEqX,shift,finVars,newEq,expVarRules,j},
         newRecSystem = {};
