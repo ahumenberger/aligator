@@ -572,8 +572,9 @@ RecSystem[assgn__] :=
         {recAssg,recVars}         = FlattenBody[assgAll,{},{}];
         {recEqSystem,recVarList} = RecRelations[recAssg,n,{},{},recVars];
         {recEqSystem,recVarList}  = FlattenRecurrences[recEqSystem,n,recEqSystem,recVarList];
-        recEqSystem               = recEqSystem/.OptionValue[Aligator,LoopCounter]->n;
-        recChangedVars            = ProperRecVars[recEqSystem,n,{}];
+        recEqSystem    = ShiftRec[#,n]&/@recEqSystem;
+        recEqSystem    = recEqSystem/.OptionValue[Aligator,LoopCounter]->(n+1);
+        recChangedVars = ProperRecVars[recEqSystem,n,{}];
         If[ recChangedVars == {},
             Print["No recursively changed variables! Not P-solvable Loop!"];
             Abort[]
@@ -1381,15 +1382,16 @@ GosperCheckAndSolve[rhs_,x_,n_] :=
 HyperSolve[x_[y_]==rhs_,n_] :=
     Module[ {eqn,hgTerms,solvable,recOrder,matrix,sval,coeff,cf,factorList,polyCoeff,expVars,expCoeff,factCoeff,solSet},
         eqn     = x[y] == rhs;
+        recOrder = RecurrenceOrder[eqn,n,x];
         hgTerms = Hyper[eqn,x[n],Solutions->All];
         hgTerms = ToHg2[#,n]& /@ hgTerms;
         If [hgTerms == {},
             solvable = False,
             solvable = True;
-            recOrder = RecurrenceOrder[eqn,n,x];
             matrix   = Table[hgTerms,{n,0,recOrder-1}];
             sval     = Table[x[i],{i,0,recOrder-1}];
             expCoeff = LinearSolve[matrix,sval];
+            hgTerms  = hgTerms /. n -> n + recOrder - 1;
             cf       = x[n] == hgTerms.expCoeff;
             (* Print["Solutions: ", hgTerms]; *)
             (* Print["Coefficents: ", Simplify[expCoeff]]; *)
@@ -1398,6 +1400,13 @@ HyperSolve[x_[y_]==rhs_,n_] :=
                             Cases[hgTerms,r_^(n+i_.)->r,Infinity],
                             Cases[hgTerms,r_^(c_*n+i_.)->r^c,Infinity]
                         ];
+            expSeq = Join[
+                            Cases[hgTerms,r_^(n+i_.)->r^(n+i),Infinity],
+                            Cases[hgTerms,r_^(c_*n+i_.)->r^(c*n+i),Infinity]
+                        ];
+            If[expVars != {},
+                expCoeff = expCoeff * expSeq / ((#^n)&/@expVars)
+            ];
             (* TODO What if solutions of recurrence do not exhibit the same factorial coefficient? *)
             factCoeff  = Union[Cases[hgTerms,(n + b_.)!^k_.,Infinity]];
             (* Print["Exponential sequences: ", expVars]; *)
@@ -1505,13 +1514,13 @@ RecSolve[recSystem_,varList_,{recVar_}] :=
         ];
         (* recurrences are solvable, what about P-solvable loop? *)
         (* Print["Start PSolvability Check for ", cfSystem, " with recIndex: ", n]; *)
-        {newRecSystem,expVars,expBases,expDepList} = PSolvableCheck[cfSystem,n];
+        {newRecSystem,expVars,expBases,expDepList,auxVars} = CleanPSolvableCheck[cfSystem,n];
         (* Print["newRecSystem: ",newRecSystem];Print["expVars: ",expVars];Print["expBases: ",expBases];Print["expDepList: ",expDepList]; *)
         iniVarListCorresp      = varList/.n->0;
         iniVarList             = Table[iniVarListCorresp[[i,1]],{i,1,Length[iniVarListCorresp]}];
         {newRecSystem,finVars} = SeqToVars[newRecSystem,varList,expVars,expBases,n];
         iniVarRules            = IniValuesAndVarRules[finVars,iniVarList];
-        {newRecSystem/.iniVarRules,{n},expVars,finVars,iniVarList/.iniVarRules,expDepList}
+        {newRecSystem/.iniVarRules,{n},expVars,finVars,iniVarList/.iniVarRules,expDepList,auxVars}
     ]
 
 
@@ -1654,7 +1663,6 @@ CleanPSolvableCheck[sys_,n_] :=
                             {i,4,Length[solSet]}
                         ]
                     ];
-                    Print["factVarRules: ",factVarRules];
                     (* solSet = solSet/.factVarRules; *)
                     (* Print[solSet]; *)
 
@@ -1670,7 +1678,7 @@ CleanPSolvableCheck[sys_,n_] :=
                             Table[y[k+i],{i,1,Length[solSet[[2]]]}]
                           ];
                     factVars = Table[f[i],{i,1,Length[solSet]-3}];
-                    Print[Dot @@ recurrence];
+                    rec = Flatten[Dot @@ recurrence][[1]];
                     (* var = If[solSet] *)
                     (* Print[]; *)
                     (* Print[var.solSet[[3]].solSet[[4]]]; *)
@@ -1690,7 +1698,7 @@ CleanPSolvableCheck[sys_,n_] :=
                         ];
                         newRecEq = recEq[[1]]==coeffTerm
                     ]; *)
-                    newRecSystem = Append[newRecSystem,recEq[[1]] == Dot @@ recurrence],
+                    newRecSystem = Append[newRecSystem,recEq[[1]] == rec],
                     {i,1,Length[cfSystem]}
                 ];
                 newRecSystem = newRecSystem/.factVarRules
@@ -1832,9 +1840,9 @@ ShiftBackSolSet[system__,n_,shiftValue_] :=
 InvLoopAssg[loop_] :=
     Module[ {recSystem,VarList,CFSystem,recVar,expVars,finVars,iniVars,AlgDep,elimVars,polySystem,invariants},
         {recSystem,VarList,recVar}                       = FromLoopToRecs[loop];
-        {CFSystem,recVar,expVars,finVars,iniVars,AlgDep} = RecSolve[recSystem,VarList,recVar];
+        {CFSystem,recVar,expVars,finVars,iniVars,AlgDep,auxVars} = RecSolve[recSystem,VarList,recVar];
         (* Print["P-solvable Loop!"]; *)
-        elimVars   = Union[recVar,expVars];
+        elimVars   = Union[recVar,expVars,auxVars];
         polySystem = Union[AlgDep,CFSystem];
         invariants = GroebnerBasis[polySystem,finVars,elimVars];
         Print["Method is complete!"];
