@@ -1029,21 +1029,6 @@ LinRecCSolve[x_[y_]==rhs_,n_] :=
 UnsortedComplement[x_List,y__List] :=
     Replace[x,Dispatch[(#:>Sequence[])&/@Union[y]],1]
 
-(* TODO Not used at the moment *)
-HomogeneousTransform[x_[y_]==rhs_,n_] :=
-    Module[{newRec,newIniRules,shift,givenOrder,expectedOrder},
-        newRec      = {};
-        newIniRules = {};
-        shift       = ShiftOrder[inHomPart,n];
-        If[shift == 0, (* inHomPart is 0 -> original rec is CFinite *)
-            newRec = x[y]==rhs,
-            (* make the recurrence CFinite *)
-            givenOrder  = RecurrenceOrder[x[y] == rhs,n,x];
-            expectedOrder = givenOrder+shift;
-            {newRec,newIniRules} = InhomRecTransform[x[y]==rhs,n,expectedOrder]
-        ];
-        {newRec,newIniRules}
-    ]
 
 (* ***************************************************************************** *)
 (* Check the C-finiteness of the rhs of recurrence of x[n] (i.e. x[n+_)=rhs).    *)
@@ -1382,28 +1367,29 @@ GosperCheckAndSolve[rhs_,x_,n_] :=
 HyperSolve[x_[y_]==rhs_,n_] :=
     Module[ {eqn,hgTerms,solvable,recOrder,matrix,sval,coeff,cf,factorList,polyCoeff,expVars,expCoeff,factCoeff,solSet},
         eqn     = x[y] == rhs;
+        (* TODO deal with inhomogeneos recurrences *)
+        (* eqn     = HomogeneousTransform[eqn,n]; *)
         recOrder = RecurrenceOrder[eqn,n,x];
         hgTerms = Hyper[eqn,x[n],Solutions->All];
-        hgTerms = ToHg2[#,n]& /@ hgTerms;
+        hgTerms = ToHg[#,n]& /@ hgTerms;
         If [hgTerms == {},
             solvable = False,
             solvable = True;
-            matrix   = Table[hgTerms,{n,0,recOrder-1}];
-            sval     = Table[x[i],{i,0,recOrder-1}];
+            matrix   = Table[hgTerms,{n,0,Length[hgTerms]-1}];
+            sval     = Table[x[i],{i,0,Length[hgTerms]-1}];
             expCoeff = LinearSolve[matrix,sval];
+            (* TODO make the following shift somewhere outside HyperSolve *)
             hgTerms  = hgTerms /. n -> n + recOrder - 1;
             cf       = x[n] == hgTerms.expCoeff;
-            (* Print["Solutions: ", hgTerms]; *)
             (* Print["Coefficents: ", Simplify[expCoeff]]; *)
             (* Print["Closed form: ", cf]; *)
-            expVars    = Union[
-                            Cases[hgTerms,r_^(n+i_.)->r,Infinity],
-                            Cases[hgTerms,r_^(c_*n+i_.)->r^c,Infinity]
-                        ];
-            expSeq = Join[
-                            Cases[hgTerms,r_^(n+i_.)->r^(n+i),Infinity],
-                            Cases[hgTerms,r_^(c_*n+i_.)->r^(c*n+i),Infinity]
-                        ];
+            (* Replace every term which contains no exponential sequence by 1 *)
+            expVars = Cases[#, (r_^(c_.*n + i_.)) -> r^c, {0, Infinity}, Heads -> True]& /@ hgTerms;
+            expVars = expVars /. {} -> {1} // Flatten;
+
+            expSeq = Cases[#, (r_^(c_.*n + i_.)) -> r^(c*n+i), {0, Infinity}, Heads -> True]& /@ hgTerms;
+            expSeq = expSeq /. {} -> {1} // Flatten;
+
             If[expVars != {},
                 expCoeff = expCoeff * expSeq / ((#^n)&/@expVars)
             ];
@@ -1418,11 +1404,14 @@ HyperSolve[x_[y_]==rhs_,n_] :=
     ]
 
 (* Copied from Hyper.m *)
-(* Cannot deal with expressions like -1-n *)
+(* Fixed in order to deal with expressions like (-n - 1) *)
 ToHg[f_, n_] :=
-    Module[{ff = Factor[f]},
-        ff = ff /. (a_. n + b_.)^k_. -> a^k (n + b/a)^k;
-        ff = If[Head[ff] === Times, List @@ ff, {ff}];
+    Module[{ff = FactorTermsList[f]},
+        If[ff[[1]] != -1, 
+            ff = Factor[f];
+            ff = ff /. (a_. n + b_.)^k_. -> a^k (n + b/a)^k;
+            ff = If[Head[ff] === Times, List @@ ff, {ff}]
+        ];
         ff = Replace[#, (n + b_.)^k_. :> (Factorial[b+n-1])^k]& /@ ff;
         ff = Replace[#, c_ /; FreeQ[c, n] -> c^n]& /@ ff;
         ff = Times @@ ff;
@@ -1440,6 +1429,26 @@ ToHg2[f_, n_] :=
         ff = Times @@ ff;
         (* ff = a0 ff / (ff /. n -> n0); *)
         Return[GosperSum`FS[ff, n]]
+    ];
+
+    (* TODO Not used at the moment *)
+HomogeneousTransform[x_[y_]==rhs_,n_] :=
+    Module[{newRec,newIniRules,shift,givenOrder,expectedOrder},
+        rec = x[y] == rhs;
+        eqn = x[y] - rhs;
+        homPart = Plus @@ Cases[eqn,x[_]*_.];
+        inhomPart = eqn - homPart;
+        If[!PossibleZeroQ[inhomPart],
+            res = homPart / inhomPart;
+            res = (res /. n -> (n+1)) - res;
+            Print[res];
+            index = Max @@ Cases[res,x[n+i_.] -> i,Infinity];
+            Print[index];
+            coeff = Coefficient[res, x[n+index]];
+            rec = x[n+index] == Simplify[-(res - coeff * x[n+index]) / coeff];
+            Print[rec]
+        ];
+        rec
     ];
 
 (* ********************************************************************************** *)
@@ -1518,6 +1527,7 @@ RecSolve[recSystem_,varList_,{recVar_}] :=
         (* Print["newRecSystem: ",newRecSystem];Print["expVars: ",expVars];Print["expBases: ",expBases];Print["expDepList: ",expDepList]; *)
         iniVarListCorresp      = varList/.n->0;
         iniVarList             = Table[iniVarListCorresp[[i,1]],{i,1,Length[iniVarListCorresp]}];
+        (* TODO check if SeqToVars is still necessary *)
         {newRecSystem,finVars} = SeqToVars[newRecSystem,varList,expVars,expBases,n];
         iniVarRules            = IniValuesAndVarRules[finVars,iniVarList];
         {newRecSystem/.iniVarRules,{n},expVars,finVars,iniVarList/.iniVarRules,expDepList,auxVars}
@@ -1644,31 +1654,18 @@ CleanPSolvableCheck[sys_,n_] :=
                 Print["A: ",expVars];
                 Print["B: ",expSeq];
                 expDepList = Equal[#,0]&/@expDepList;
+                {cfSystem[[All,2]],factIndices} = CanonicalSystem[cfSystem[[All,2]],n];
+                factVarRules = ((n + #)! -> Unique[])& /@ factIndices;
+                auxVars = Union[auxVars,Values[factVarRules]];
                 (* rewrite exponentials in cfSystem by the new variables *)
                 k = 0;
                 (* counter of the nr. of vars stnading for exponential seq, i.e. max value is Length[expSeq]*)
-                factVarRules = {};
                 Do[
                     recEq     = cfSystem[[i,1]];
                     solSet    = cfSystem[[i,2]];
- 
-                    If[Length[solSet] > 3,
-                        Do[
-                            fact = solSet[[i,1,1]];
-                            If[Not[MatchQ[factVarRules,KeyValuePattern[fact -> x_]]],
-                                f = Unique[];
-                                AppendTo[auxVars,f];
-                                AppendTo[factVarRules,fact -> f]
-                            ],
-                            {i,4,Length[solSet]}
-                        ]
-                    ];
-                    (* solSet = solSet/.factVarRules; *)
-                    (* Print[solSet]; *)
 
                     Print["SolSet: ",solSet[[2;;]]];
                     recurrence = solSet[[2;;]];
-                    (* recurrence[[1]] = DeleteCases[recurrence[[1]],1]; *)
                     recurrence[[1]] = Replace[recurrence[[1]], x_?(# != 1&) :> y[++k],{1}];
                     recurrence[[1]] = Replace[recurrence[[1]],{} -> {{1}}];
                     Print["Recurrence: ",recurrence];
@@ -1707,6 +1704,42 @@ CleanPSolvableCheck[sys_,n_] :=
         Print["Final: ", newRecSystem];
         Print["ExpVars: ", expVars];
         {newRecSystem,expVars,expSeqBases,expDepList,auxVars}
+    ];
+
+CanonicalSystem[solSets_,n_] :=
+    Module[{sets,indices,remaining,refFact,fact,index,tmp,i,j,k},
+        (* {x, expVars, expCoeff, fact1, fact2, ...} *)
+        sets = solSets;
+        indices = Union[Cases[sets,(n+i_.)!->i,Infinity,Heads->True]];
+        Print[indices];
+        If[indices == {},
+            Return[{sets,{}}]
+        ];
+        remaining = {};
+        While[indices != {},
+            remaining = Append[remaining,indices[[1]]];
+            indices = DeleteCases[indices[[2;;]],t_ /; Mod[(t-indices[[1]]),1] == 0];
+        ];
+        Do[
+            (* Print["SolSet: ", sets[[i]]]; *)
+            If[Length[sets[[i]]] < 4, Continue[]];
+            Do[
+                fact = sets[[i,j]];
+                (* Print["Factorial: ", fact]; *)
+                index = Cases[{fact},(n+k_.)!->k,Infinity,1,Heads->True][[1]];
+                (* Print["Index: ", index]; *)
+                If[!MemberQ[remaining,index],
+                    refIndex = Cases[remaining,t_ /; Mod[(t-index),1] == 0][[1]];
+                    refFact = (n + refIndex)!;
+                    tmp = FullSimplify[fact / refFact];
+                    sets[[i,3]] = sets[[i,3]] * tmp;
+                    sets[[i,j]] = {{refFact}}
+                ],
+                {j,4,Length[sets[[i]]]}
+            ],
+            {i,1,Length[sets]}
+        ];
+        {sets,remaining}
     ];
 
 SeqToVars[sys_,varList_,expVars_,expBases_,n_] :=
