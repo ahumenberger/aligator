@@ -1637,8 +1637,8 @@ CleanPSolvableCheck[sys_,n_] :=
             {i,1,Length[cfSystem]}
         ];
         (*check algebraic dependencies*)
-        expBases    = Apply[Join,Table[cfSystem[[i,3]],{i,1,Length[cfSystem]}]];
-        expSeq      = #^n&/@expBases;
+        expBases    = DeleteCases[Join @@ Table[cfSystem[[i,3]],{i,1,Length[cfSystem]}], 1];
+        expSeq      = (#^n&/@expBases) // PrintDebug["[PSolvableCheck] Exponential sequences"];
         expSeqBases = expBases;
         If[ expBases == {},(*Psolvable*)
             newRecSystem = Table[cfSystem[[i,1]],{i,1,Length[cfSystem]}],
@@ -1650,9 +1650,7 @@ CleanPSolvableCheck[sys_,n_] :=
                 Print["Not P-solvable loop! No algebraic dependencies among exponentials!"];
                 Abort[],
                 (*Psolvable*)
-                expVars    = Table[y[i],{i,1,Length[expSeq]}];
-                Print["A: ",expVars];
-                Print["B: ",expSeq];
+                expVars    = Table[y[i],{i,1,Length[expSeq]}] // PrintDebug["[PSolvableCheck] Exponential variables"];
                 expDepList = Equal[#,0]&/@expDepList;
                 {cfSystem[[All,2]],factIndices} = CanonicalSystem[cfSystem[[All,2]],n];
                 factVarRules = ((n + #)! -> Unique[])& /@ factIndices;
@@ -1661,14 +1659,12 @@ CleanPSolvableCheck[sys_,n_] :=
                 k = 0;
                 (* counter of the nr. of vars stnading for exponential seq, i.e. max value is Length[expSeq]*)
                 Do[
-                    recEq     = cfSystem[[i,1]];
-                    solSet    = cfSystem[[i,2]];
+                    recEq  = cfSystem[[i,1]];
+                    solSet = cfSystem[[i,2]];
 
-                    Print["SolSet: ",solSet[[2;;]]];
                     recurrence = solSet[[2;;]];
                     recurrence[[1]] = Replace[recurrence[[1]], x_?(# != 1&) :> y[++k],{1}];
                     recurrence[[1]] = Replace[recurrence[[1]],{} -> {{1}}];
-                    Print["Recurrence: ",recurrence];
 
                     var = If[solSet[[2]] == {},
                             {1},
@@ -1701,8 +1697,7 @@ CleanPSolvableCheck[sys_,n_] :=
                 newRecSystem = newRecSystem/.factVarRules
             ]
         ];
-        Print["Final: ", newRecSystem];
-        Print["ExpVars: ", expVars];
+        PrintDebug["[PSolvableCheck] Return", newRecSystem];
         {newRecSystem,expVars,expSeqBases,expDepList,auxVars}
     ];
 
@@ -1711,7 +1706,6 @@ CanonicalSystem[solSets_,n_] :=
         (* {x, expVars, expCoeff, fact1, fact2, ...} *)
         sets = solSets;
         indices = Union[Cases[sets,(n+i_.)!->i,Infinity,Heads->True]];
-        Print[indices];
         If[indices == {},
             Return[{sets,{}}]
         ];
@@ -2186,7 +2180,7 @@ GroebnerBasis[RecDep/.RewriteRules,SimpleRecVars]
 PrintDebug[msg_, expr_] :=
     Block[{strMsg},
         strMsg = If[msg == "", msg, msg <> ": "]; 
-        Print[strMsg,expr];
+        (* Print[strMsg,expr]; *)
         expr
     ];
 
