@@ -2181,6 +2181,17 @@ GroebnerBasis[RecDep/.RewriteRules,SimpleRecVars]
 ]
 *)
 
+(* Set variable 'debugPrint' to 'Print' to enable, and unset it to disable printing *)
+(* Note that PrintDebug returns the original expresson                              *)
+PrintDebug[msg_, expr_] :=
+    Block[{debugPrint = Print, strMsg = ToString[msg], strExpr = ToString[expr]},
+        str = If[strMsg == "", strExpr, strMsg <> ": " <> strExpr]; 
+        str // debugPrint;
+        expr
+    ];
+
+(* Operator form of PrintDebug; allows statements like: var = expr // PrintDebug["Value of var"] *)
+PrintDebug[msg_][expr_] := PrintDebug[msg, expr];
 
 Needs["Dependencies`"]
 Needs["zb`"]
