@@ -1718,13 +1718,13 @@ CanonicalSystem[solSets_,n_] :=
             (* Print["SolSet: ", sets[[i]]]; *)
             If[Length[sets[[i]]] < 4, Continue[]];
             Do[
-                fact = sets[[i,j]];
+                fact = sets[[i,j]][[1,1]];
                 (* Print["Factorial: ", fact]; *)
-                index = Cases[{fact},(n+k_.)!->k,Infinity,1,Heads->True][[1]];
+                {index,exp} = Cases[{fact},(n+j_.)!^k_.->{j,k},Infinity,1,Heads->True][[1]];
                 (* Print["Index: ", index]; *)
                 If[!MemberQ[remaining,index],
                     refIndex = Cases[remaining,t_ /; Mod[(t-index),1] == 0][[1]];
-                    refFact = (n + refIndex)!;
+                    refFact = (n + refIndex)!^exp;
                     tmp = FullSimplify[fact / refFact];
                     sets[[i,3]] = sets[[i,3]] * tmp;
                     sets[[i,j]] = {{refFact}}
