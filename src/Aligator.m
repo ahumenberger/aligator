@@ -1007,7 +1007,7 @@ LinRecCSolve[x_[y_]==rhs_,n_] :=
         solSet      = {};
         {cfinite,inHomPart} = CFiniteCheck[Expand[rhs],n,x];
         If[ Not[cfinite],
-            Print["Illegal recurrence encountered: " <>ToString[x[y]==rhs]],
+            PrintDebug["[LinRecCSolve] Not C-finite", x[y]==rhs],
             (* 2. it is CFinite ->  shift the inhomogenous part *)
             givenOrder    = RecurrenceOrder[x[y] == rhs,n,x];
             shift         = ShiftOrder[inHomPart,n];
@@ -1366,12 +1366,12 @@ GosperCheckAndSolve[rhs_,x_,n_] :=
 
 HyperSolve[x_[y_]==rhs_,n_] :=
     Module[ {eqn,hgTerms,solvable,recOrder,matrix,sval,coeff,cf,factorList,polyCoeff,expVars,expCoeff,factCoeff,solSet},
-        eqn     = x[y] == rhs;
+        eqn     = (x[y] == rhs) // PrintDebug["[HS] HyperSolve with"];
         (* TODO deal with inhomogeneos recurrences *)
         (* eqn     = HomogeneousTransform[eqn,n]; *)
         recOrder = RecurrenceOrder[eqn,n,x];
         hgTerms = Hyper[eqn,x[n],Solutions->All];
-        hgTerms = ToHg[#,n]& /@ hgTerms;
+        hgTerms = (ToHg[#,n]& /@ hgTerms) // PrintDebug["[HS] Solutions of Hyper"];
         If [hgTerms == {},
             solvable = False,
             solvable = True;
@@ -1380,12 +1380,12 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             expCoeff = LinearSolve[matrix,sval];
             (* TODO make the following shift somewhere outside HyperSolve *)
             hgTerms  = hgTerms /. n -> n + recOrder - 1;
-            cf       = x[n] == hgTerms.expCoeff;
+            cf       = (x[n] == hgTerms.expCoeff) // PrintDebug["[HS] Closed form"];
             (* Print["Coefficents: ", Simplify[expCoeff]]; *)
             (* Print["Closed form: ", cf]; *)
             (* Replace every term which contains no exponential sequence by 1 *)
             expVars = Cases[#, (r_^(c_.*n + i_.)) -> r^c, {0, Infinity}, Heads -> True]& /@ hgTerms;
-            expVars = expVars /. {} -> {1} // Flatten;
+            expVars = (expVars /. {} -> {1} // Flatten) // PrintDebug["[HS] Exponential sequences"];
 
             expSeq = Cases[#, (r_^(c_.*n + i_.)) -> r^(c*n+i), {0, Infinity}, Heads -> True]& /@ hgTerms;
             expSeq = expSeq /. {} -> {1} // Flatten;
@@ -1394,7 +1394,7 @@ HyperSolve[x_[y_]==rhs_,n_] :=
                 expCoeff = expCoeff * expSeq / ((#^n)&/@expVars)
             ];
             (* TODO What if solutions of recurrence do not exhibit the same factorial coefficient? *)
-            factCoeff  = Union[Cases[hgTerms,(n + b_.)!^k_.,Infinity]];
+            factCoeff  = (Union[Cases[hgTerms,(n + b_.)!^k_.,Infinity]]) // PrintDebug["[HS] Factorials"];
             (* Print["Exponential sequences: ", expVars]; *)
             (* Print["Exponential coefficients: ", expCoeff]; *)
             (* Print["Factorial coefficients: ", factCoeff]; *)
@@ -2181,12 +2181,12 @@ GroebnerBasis[RecDep/.RewriteRules,SimpleRecVars]
 ]
 *)
 
-(* Set variable 'debugPrint' to 'Print' to enable, and unset it to disable printing *)
-(* Note that PrintDebug returns the original expresson                              *)
+(* Uncomment/Comment Print[...] to enable/disable       *)
+(* Note that PrintDebug returns the original expression *)
 PrintDebug[msg_, expr_] :=
-    Block[{debugPrint = Print, strMsg = ToString[msg], strExpr = ToString[expr]},
-        str = If[strMsg == "", strExpr, strMsg <> ": " <> strExpr]; 
-        str // debugPrint;
+    Block[{strMsg},
+        strMsg = If[msg == "", msg, msg <> ": "]; 
+        Print[strMsg,expr];
         expr
     ];
 
