@@ -1373,7 +1373,7 @@ HyperSolve[x_[y_]==rhs_,n_] :=
         eqn      = HomogeneousTransform[eqn,n] // PrintDebug["[HS] Homogeneous"];
         recOrder = RecurrenceOrder[eqn,n,x];
         hgTerms  = Hyper[eqn,x[n],Solutions->All] // PrintDebug["[HS] Solutions of Hyper"];
-        hgTerms  = (ToHg[#,n]& /@ hgTerms) // PrintDebug["[HS] Solutions of ToHg"];
+        hgTerms  = (ToHg2[#,n]& /@ hgTerms) // PrintDebug["[HS] Solutions of ToHg"];
         If [hgTerms == {},
             solvable = False,
             solvable = True;
@@ -1381,8 +1381,9 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             sval     = Table[x[i],{i,0,Length[hgTerms]-1}];
             expCoeff = LinearSolve[matrix,sval];
             (* TODO make the following shift somewhere outside HyperSolve *)
-            hgTerms  = hgTerms /. n -> n + recOrder - 1;
-            cf       = (x[n] == hgTerms.expCoeff) // PrintDebug["[HS] Closed form"];
+            hgTerms = hgTerms /. n -> n + recOrder - 1;
+            hgTerms = hgTerms /. (FactorialPower[fact_,n+i_.] -> FactorialPower[fact,n+i-(recOrder-1)]);
+            cf      = (x[n] == hgTerms.expCoeff) // PrintDebug["[HS] Closed form"];
             (* Replace every term which contains no exponential sequence by 1 *)
             expVars = Cases[#, (r_^(c_.*n + i_.)) -> r^c, {0, Infinity}, Heads -> True]& /@ hgTerms;
             expVars = (expVars /. {} -> {1} // Flatten) // PrintDebug["[HS] Exponential sequences"];
@@ -1394,7 +1395,7 @@ HyperSolve[x_[y_]==rhs_,n_] :=
                 expCoeff = expCoeff * expSeq / ((#^n)&/@expVars)
             ];
             (* TODO What if solutions of recurrence do not exhibit the same factorial coefficient? *)
-            factCoeff = (Union[Cases[hgTerms,(n + b_.)!^k_.,Infinity]]) // PrintDebug["[HS] Factorials"];
+            factCoeff = (Union[Cases[hgTerms,FactorialPower[n + b_.,n]^k_.,Infinity]]) // PrintDebug["[HS] Factorials"];
             solSet    = {x,expVars,List[#]&/@expCoeff,{factCoeff}}
         ];
         {solvable,cf,solSet,expVars}
@@ -1416,19 +1417,21 @@ ToHg[f_, n_] :=
         Return[GosperSum`FS[ff, n]]
     ];
 
-(* Experimental *)
 ToHg2[f_, n_] :=
     Module[{ff = FactorTermsList[f]},
-        (* ff = ff /. (a_. n + b_.)^k_. -> a^k (n + b/a)^k; *)
-        (* ff = If[Head[ff] === Times, List @@ ff, {ff}]; *)
-        ff = Replace[#, (n + b_.)^k_. :> (Factorial[b+n-1])^k]& /@ ff;
+        If[ff[[1]] != -1, 
+            ff = Factor[f];
+            ff = ff /. (a_. n + b_.)^k_. -> a^k (n + b/a)^k;
+            ff = If[Head[ff] === Times, List @@ ff, {ff}]
+        ];
+        ff = Replace[#, (n + b_.)^k_. :> (FactorialPower[n+b-1,n])^k]& /@ ff;
         ff = Replace[#, c_ /; FreeQ[c, n] -> c^n]& /@ ff;
         ff = Times @@ ff;
         (* ff = a0 ff / (ff /. n -> n0); *)
-        Return[GosperSum`FS[ff, n]]
+        Return[ff]
     ];
 
-    (* TODO Not used at the moment *)
+(* TODO Not used at the moment *)
 HomogeneousTransform[x_[y_]==rhs_,n_] :=
     Module[{newRec,newIniRules,shift,givenOrder,expectedOrder},
         rec = x[y] == rhs;
@@ -1655,7 +1658,8 @@ CleanPSolvableCheck[sys_,n_] :=
                 expVars    = Table[y[i],{i,1,Length[expSeq]}] // PrintDebug["[PSolvableCheck] Exponential variables"];
                 expDepList = Equal[#,0]&/@expDepList;
                 {cfSystem[[All,2]],factIndices} = CanonicalSystem[cfSystem[[All,2]],n];
-                factVarRules = ((n + #)! -> Unique[])& /@ factIndices;
+                factVarRules = (FactorialPower[n + #,n] -> Unique[])& /@ factIndices;
+                Print[factVarRules];
                 auxVars = Union[auxVars,Values[factVarRules]];
                 (* rewrite exponentials in cfSystem by the new variables *)
                 k = 0;
@@ -1707,7 +1711,7 @@ CanonicalSystem[solSets_,n_] :=
     Module[{sets,indices,remaining,refFact,fact,index,tmp,i,j,k},
         (* {x, expVars, expCoeff, fact1, fact2, ...} *)
         sets = solSets;
-        indices = Union[Cases[sets,(n+i_.)!->i,Infinity,Heads->True]];
+        indices = Union[Cases[sets,FactorialPower[n+i_.,n]->i,Infinity,Heads->True]];
         If[indices == {},
             Return[{sets,{}}]
         ];
@@ -1722,11 +1726,11 @@ CanonicalSystem[solSets_,n_] :=
             Do[
                 fact = sets[[i,j]][[1,1]];
                 (* Print["Factorial: ", fact]; *)
-                {index,exp} = Cases[{fact},(n+j_.)!^k_.->{j,k},Infinity,1,Heads->True][[1]];
+                {index,exp} = Cases[{fact},FactorialPower[n+j_.,n]^k_.->{j,k},Infinity,1,Heads->True][[1]];
                 (* Print["Index: ", index]; *)
                 If[!MemberQ[remaining,index],
                     refIndex = Cases[remaining,t_ /; Mod[(t-index),1] == 0][[1]];
-                    refFact = (n + refIndex)!^exp;
+                    refFact = FactorialPower[n + refIndex,n]^exp;
                     tmp = FullSimplify[fact / refFact];
                     sets[[i,3]] = sets[[i,3]] * tmp;
                     sets[[i,j]] = {{refFact}}
