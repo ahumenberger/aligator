@@ -233,7 +233,10 @@ Aligator[c_] :=
             invariants = InvLoopCond[loops]
         ];
         (* transform polys into poly equalities *)
-        Simplify[And@@(Equal[#,0]&/@invariants )]
+        If[invariants == {},
+            Print["No invariants found!"]; {},
+            Simplify[And@@(Equal[#,0]&/@invariants)]
+        ]
     ]
 
 
@@ -1366,12 +1369,11 @@ GosperCheckAndSolve[rhs_,x_,n_] :=
 
 HyperSolve[x_[y_]==rhs_,n_] :=
     Module[ {eqn,hgTerms,solvable,recOrder,matrix,sval,coeff,cf,factorList,polyCoeff,expVars,expCoeff,factCoeff,solSet},
-        eqn     = (x[y] == rhs) // PrintDebug["[HS] HyperSolve with"];
-        (* TODO deal with inhomogeneos recurrences *)
-        (* eqn     = HomogeneousTransform[eqn,n]; *)
+        eqn      = (x[y] == rhs) // PrintDebug["[HS] HyperSolve with"];
+        eqn      = HomogeneousTransform[eqn,n] // PrintDebug["[HS] Homogeneous"];
         recOrder = RecurrenceOrder[eqn,n,x];
-        hgTerms = Hyper[eqn,x[n],Solutions->All];
-        hgTerms = (ToHg[#,n]& /@ hgTerms) // PrintDebug["[HS] Solutions of Hyper"];
+        hgTerms  = Hyper[eqn,x[n],Solutions->All] // PrintDebug["[HS] Solutions of Hyper"];
+        hgTerms  = (ToHg[#,n]& /@ hgTerms) // PrintDebug["[HS] Solutions of ToHg"];
         If [hgTerms == {},
             solvable = False,
             solvable = True;
@@ -1381,8 +1383,6 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             (* TODO make the following shift somewhere outside HyperSolve *)
             hgTerms  = hgTerms /. n -> n + recOrder - 1;
             cf       = (x[n] == hgTerms.expCoeff) // PrintDebug["[HS] Closed form"];
-            (* Print["Coefficents: ", Simplify[expCoeff]]; *)
-            (* Print["Closed form: ", cf]; *)
             (* Replace every term which contains no exponential sequence by 1 *)
             expVars = Cases[#, (r_^(c_.*n + i_.)) -> r^c, {0, Infinity}, Heads -> True]& /@ hgTerms;
             expVars = (expVars /. {} -> {1} // Flatten) // PrintDebug["[HS] Exponential sequences"];
@@ -1394,11 +1394,8 @@ HyperSolve[x_[y_]==rhs_,n_] :=
                 expCoeff = expCoeff * expSeq / ((#^n)&/@expVars)
             ];
             (* TODO What if solutions of recurrence do not exhibit the same factorial coefficient? *)
-            factCoeff  = (Union[Cases[hgTerms,(n + b_.)!^k_.,Infinity]]) // PrintDebug["[HS] Factorials"];
-            (* Print["Exponential sequences: ", expVars]; *)
-            (* Print["Exponential coefficients: ", expCoeff]; *)
-            (* Print["Factorial coefficients: ", factCoeff]; *)
-            solSet = {x,expVars,List[#]&/@expCoeff,{factCoeff}}
+            factCoeff = (Union[Cases[hgTerms,(n + b_.)!^k_.,Infinity]]) // PrintDebug["[HS] Factorials"];
+            solSet    = {x,expVars,List[#]&/@expCoeff,{factCoeff}}
         ];
         {solvable,cf,solSet,expVars}
     ]
@@ -1436,17 +1433,22 @@ HomogeneousTransform[x_[y_]==rhs_,n_] :=
     Module[{newRec,newIniRules,shift,givenOrder,expectedOrder},
         rec = x[y] == rhs;
         eqn = x[y] - rhs;
-        homPart = Plus @@ Cases[eqn,x[_]*_.];
-        inhomPart = eqn - homPart;
-        If[!PossibleZeroQ[inhomPart],
+        recOrder = RecurrenceOrder[rec,n,x] // PrintDebug["[HomTransform] Rec order"];
+        startIndex = Max[Cases[eqn,x[n+i_.] -> i]];
+        homPart = 0;
+        Do[
+            coeff = Coefficient[eqn,x[n+i]];
+            homPart = homPart + coeff * x[n+i],
+            {i,startIndex-recOrder,startIndex}
+        ];
+        inhomPart = (eqn - homPart) // Simplify // PrintDebug["[HomTransform] Inhom part"];
+        If[PossibleZeroQ[inhomPart],
+            PrintDebug["[HomTransform] Rec is homogeneous",rec],
             res = homPart / inhomPart;
             res = (res /. n -> (n+1)) - res;
-            Print[res];
             index = Max @@ Cases[res,x[n+i_.] -> i,Infinity];
-            Print[index];
             coeff = Coefficient[res, x[n+index]];
             rec = x[n+index] == Simplify[-(res - coeff * x[n+index]) / coeff];
-            Print[rec]
         ];
         rec
     ];
@@ -1644,7 +1646,7 @@ CleanPSolvableCheck[sys_,n_] :=
             newRecSystem = Table[cfSystem[[i,1]],{i,1,Length[cfSystem]}],
             (* ELSE: there are exponential sequences -> get Dependencies *)
             y = Unique[];
-            expDepList =(*Dependencies`Private`*) Dependencies[expSeq,y,Variables->{n}];
+            expDepList = Dependencies[expSeq,y,Variables->{n}] // PrintDebug["[PSolvableCheck] Dependencies among exp seq"];
             If[ expDepList=={}, 
                 (* no alg. dep -> not Psolvable *)
                 Print["Not P-solvable loop! No algebraic dependencies among exponentials!"];
