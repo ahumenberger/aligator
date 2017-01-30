@@ -576,7 +576,7 @@ RecSystem[assgn__] :=
         {recEqSystem,recVarList} = RecRelations[recAssg,n,{},{},recVars];
         {recEqSystem,recVarList}  = FlattenRecurrences[recEqSystem,n,recEqSystem,recVarList];
         recEqSystem    = ShiftRec[#,n]&/@recEqSystem;
-        recEqSystem    = recEqSystem/.OptionValue[Aligator,LoopCounter]->(n+1);
+        recEqSystem    = recEqSystem/.OptionValue[Aligator,LoopCounter]->n;
         recChangedVars = ProperRecVars[recEqSystem,n,{}];
         If[ recChangedVars == {},
             Print["No recursively changed variables! Not P-solvable Loop!"];
@@ -1380,9 +1380,6 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             matrix   = Table[hgTerms,{n,0,Length[hgTerms]-1}];
             sval     = Table[x[i],{i,0,Length[hgTerms]-1}];
             expCoeff = LinearSolve[matrix,sval];
-            (* TODO make the following shift somewhere outside HyperSolve *)
-            hgTerms = hgTerms /. n -> n + recOrder - 1;
-            hgTerms = hgTerms /. (FactorialPower[fact_,n+i_.] -> FactorialPower[fact,n+i-(recOrder-1)]);
             cf      = (x[n] == hgTerms.expCoeff) // PrintDebug["[HS] Closed form"];
             (* Replace every term which contains no exponential sequence by 1 *)
             expVars = Cases[#, (r_^(c_.*n + i_.)) -> r^c, {0, Infinity}, Heads -> True]& /@ hgTerms;
