@@ -1380,7 +1380,8 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             matrix   = Table[hgTerms,{n,0,Length[hgTerms]-1}];
             sval     = Table[x[i],{i,0,Length[hgTerms]-1}];
             expCoeff = LinearSolve[matrix,sval];
-            cf      = (x[n] == hgTerms.expCoeff) // PrintDebug["[HS] Closed form"];
+            hgTerms  = FactorialSimplify[hgTerms] // PrintDebug["[HS] Simplified terms"];
+            cf       = (x[n] == hgTerms.expCoeff) // PrintDebug["[HS] Closed form"];
             (* Replace every term which contains no exponential sequence by 1 *)
             expVars = Cases[#, (r_^(c_.*n + i_.)) -> r^c, {0, Infinity}, Heads -> True]& /@ hgTerms;
             expVars = (expVars /. {} -> {1} // Flatten) // PrintDebug["[HS] Exponential sequences"];
@@ -1388,15 +1389,34 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             expSeq = Cases[#, (r_^(c_.*n + i_.)) -> r^(c*n+i), {0, Infinity}, Heads -> True]& /@ hgTerms;
             expSeq = expSeq /. {} -> {1} // Flatten;
 
+            factCoeff = hgTerms;
             If[expVars != {},
-                expCoeff = expCoeff * expSeq / ((#^n)&/@expVars)
+                expCoeff = expCoeff * expSeq / ((#^n)&/@expVars);
+                factCoeff = hgTerms / expSeq;
             ];
-            (* TODO What if solutions of recurrence do not exhibit the same factorial coefficient? *)
-            factCoeff = (Union[Cases[hgTerms,FactorialPower[n + b_.,n]^k_.,Infinity]]) // PrintDebug["[HS] Factorials"];
-            solSet    = {x,expVars,List[#]&/@expCoeff,{factCoeff}}
+
+            refFactList = FactorList[factCoeff[[1]]];
+            refFactList = Cases[refFactList, {FactorialPower[n + b_.,n],k_},Infinity];
+            refFact     = Times @@ (#[[1]]^#[[2]]& /@ refFactList);
+            fact        = (FactorialSimplify[# / refFact]& /@ factCoeff) // PrintDebug["[HS] Reference factorial"];
+
+            If[!FreeQ[fact,FactorialPower],
+                solvable = False;
+                PrintDebug["[HS] Recurrence not hypergeometric", hgTerms],
+                expCoeff = expCoeff * fact
+            ];
+
+            solSet    = {x,expVars,List[#]&/@expCoeff,{{refFact}}} // PrintDebug["[HS] Solution set"]
         ];
         {solvable,cf,solSet,expVars}
     ]
+
+(* Use higher weights for functions which should not appear in simplification. *)
+FactorialSimplify[expr_] := 
+    FullSimplify[expr,
+        ComplexityFunction -> ((LeafCount@# + 100 Count[#, _Gamma | _Pochhammer, {0, \[Infinity]}]
+                                + 10 Count[#, _FactorialPower, {0, \[Infinity]}]) &)
+    ];
 
 (* Copied from Hyper.m *)
 (* Fixed in order to deal with expressions like (-n - 1) *)
@@ -1415,14 +1435,15 @@ ToHg[f_, n_] :=
     ];
 
 ToHg2[f_, n_] :=
-    Module[{ff = FactorTermsList[f]},
-        If[ff[[1]] != -1, 
-            ff = Factor[f];
-            ff = ff /. (a_. n + b_.)^k_. -> a^k (n + b/a)^k;
-            ff = If[Head[ff] === Times, List @@ ff, {ff}]
-        ];
+    Module[{ff = Factor[f]},
+        m1 = FactorTermsList[ff];
+        ff = If[m1[[1]] == -1, ff * (-1), ff];
+        ff = Factor[ff];
+        ff = ff /. (a_. n + b_.)^k_. -> a^k (n + b/a)^k;
+        ff = If[Head[ff] === Times, List @@ ff, {ff}];
         ff = Replace[#, (n + b_.)^k_. :> (FactorialPower[n+b-1,n])^k]& /@ ff;
         ff = Replace[#, c_ /; FreeQ[c, n] -> c^n]& /@ ff;
+        ff = If[m1[[1]] == -1, Append[ff,(-1)^n], ff];
         ff = Times @@ ff;
         (* ff = a0 ff / (ff /. n -> n0); *)
         Return[ff]
@@ -1500,6 +1521,7 @@ RecSolve[recSystem_,varList_,{recVar_}] :=
                 (* Print["exps: ", exps]; Print["solvable: ",solvable ]; Print["cfRec: ",cfRec ]; Print["cfSolSet: ",cfSolSet ]; *)
                 expList = Join[expList,exps];
                 If[ Not[solvable],
+                    (* TODO Why continue if a recurrence is not solvable? *)
                     cfSystem = {};
                     expList  = {};
                     Continue[],
@@ -1624,6 +1646,7 @@ CleanPSolvableCheck[sys_,n_] :=
         expVars      = {};
         expBases     = {};
         auxVars      = {};
+        PrintDebug["Closed form system",cfSystem[[All,1]]];
         (* Check: polynomial cfSystem - linear combination of exponentials and polys in n*)
         Do[
             recEq        = cfSystem[[i,1]];
@@ -1704,19 +1727,22 @@ CleanPSolvableCheck[sys_,n_] :=
         {newRecSystem,expVars,expSeqBases,expDepList,auxVars}
     ];
 
-CanonicalSystem[solSets_,n_] :=
-    Module[{sets,indices,remaining,refFact,fact,index,tmp,i,j,k},
-        (* {x, expVars, expCoeff, fact1, fact2, ...} *)
-        sets = solSets;
-        indices = Union[Cases[sets,FactorialPower[n+i_.,n]->i,Infinity,Heads->True]];
-        If[indices == {},
-            Return[{sets,{}}]
-        ];
+IntegerDistance[set_] :=
+    Module[{indices,remaining},
+        indices = set;
         remaining = {};
         While[indices != {},
             remaining = Append[remaining,indices[[1]]];
             indices = DeleteCases[indices[[2;;]],t_ /; Mod[(t-indices[[1]]),1] == 0];
         ];
+        remaining
+    ];
+
+CanonicalSystem[solSets_,n_] :=
+    Module[{sets,indices,refFact,fact,index,tmp,i,j,k},
+        (* {x, expVars, expCoeff, fact1, fact2, ...} *)
+        sets = solSets;
+        indices = IntegerDistance @ Cases[sets,FactorialPower[n+i_.,n]->i,Infinity,Heads->True];
         Do[
             (* Print["SolSet: ", sets[[i]]]; *)
             If[Length[sets[[i]]] < 4, Continue[]];
@@ -1725,8 +1751,8 @@ CanonicalSystem[solSets_,n_] :=
                 (* Print["Factorial: ", fact]; *)
                 {index,exp} = Cases[{fact},FactorialPower[n+j_.,n]^k_.->{j,k},Infinity,1,Heads->True][[1]];
                 (* Print["Index: ", index]; *)
-                If[!MemberQ[remaining,index],
-                    refIndex = Cases[remaining,t_ /; Mod[(t-index),1] == 0][[1]];
+                If[!MemberQ[indices,index],
+                    refIndex = Cases[indices,t_ /; Mod[(t-index),1] == 0][[1]];
                     refFact = FactorialPower[n + refIndex,n]^exp;
                     tmp = FullSimplify[fact / refFact];
                     sets[[i,3]] = sets[[i,3]] * tmp;
@@ -1736,7 +1762,7 @@ CanonicalSystem[solSets_,n_] :=
             ],
             {i,1,Length[sets]}
         ];
-        {sets,remaining}
+        {sets,indices}
     ];
 
 SeqToVars[sys_,varList_,expVars_,expBases_,n_] :=
@@ -1872,8 +1898,8 @@ InvLoopAssg[loop_] :=
         {recSystem,VarList,recVar}                       = FromLoopToRecs[loop];
         {CFSystem,recVar,expVars,finVars,iniVars,AlgDep,auxVars} = RecSolve[recSystem,VarList,recVar];
         (* Print["P-solvable Loop!"]; *)
-        elimVars   = Union[recVar,expVars,auxVars];
-        polySystem = Union[AlgDep,CFSystem];
+        elimVars   = Union[recVar,expVars,auxVars] // PrintDebug["Elim variables"];
+        polySystem = Union[AlgDep,CFSystem] // PrintDebug["System of polynomials"];
         invariants = GroebnerBasis[polySystem,finVars,elimVars];
         Print["Method is complete!"];
         Simplify[invariants]
