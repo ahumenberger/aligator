@@ -1414,8 +1414,8 @@ HyperSolve[x_[y_]==rhs_,n_] :=
 (* Use higher weights for functions which should not appear in simplification. *)
 FactorialSimplify[expr_] := 
     FullSimplify[expr,
-        ComplexityFunction -> ((LeafCount@# + 100 Count[#, _Gamma | _Pochhammer, {0, \[Infinity]}]
-                                + 10 Count[#, _FactorialPower, {0, \[Infinity]}]) &)
+        ComplexityFunction -> ((LeafCount@# + 1000 Count[#, _Gamma | _Pochhammer, {0, \[Infinity]}]
+                                + 50 Count[#, _FactorialPower, {0, \[Infinity]}]) &)
     ];
 
 (* Copied from Hyper.m *)
@@ -1738,26 +1738,33 @@ IntegerDistance[set_] :=
         remaining
     ];
 
+FPower[n_,index_,exp_] := FactorialPower[n + index,n]^exp;
+
 CanonicalSystem[solSets_,n_] :=
     Module[{sets,indices,refFact,fact,index,tmp,i,j,k},
-        (* {x, expVars, expCoeff, fact1, fact2, ...} *)
         sets = solSets;
-        indices = IntegerDistance @ Cases[sets,FactorialPower[n+i_.,n]->i,Infinity,Heads->True];
+        indices = IntegerDistance @ Sort @ Cases[sets,FactorialPower[n+i_.,n]->i,Infinity,Heads->True];
+        Print[indices];
         Do[
-            (* Print["SolSet: ", sets[[i]]]; *)
             If[Length[sets[[i]]] < 4, Continue[]];
             Do[
-                fact = sets[[i,j]][[1,1]];
-                (* Print["Factorial: ", fact]; *)
-                {index,exp} = Cases[{fact},FactorialPower[n+j_.,n]^k_.->{j,k},Infinity,1,Heads->True][[1]];
-                (* Print["Index: ", index]; *)
-                If[!MemberQ[indices,index],
-                    refIndex = Cases[indices,t_ /; Mod[(t-index),1] == 0][[1]];
-                    refFact = FactorialPower[n + refIndex,n]^exp;
-                    tmp = FullSimplify[fact / refFact];
-                    sets[[i,3]] = sets[[i,3]] * tmp;
-                    sets[[i,j]] = {{refFact}}
-                ],
+                fact     = sets[[i,j]][[1,1]] // PrintDebug["[CS] Factorials"];
+                factList = Cases[FactorList[fact],{FactorialPower[n+j_.,n],k_}->{j,k}];
+
+                refFact  = 1;
+                expCoeff = 1;
+                Do[
+                    {index,exp} = f;
+                    If[MemberQ[indices,index],
+                        refFact  = refFact * FPower[n,index,exp],
+                        refIndex = Cases[indices,t_ /; Mod[(t-index),1] == 0][[1]];
+                        refFact  = (refFact * FPower[n,refIndex,exp]); 
+                        expCoeff = expCoeff * FactorialSimplify[FPower[n,index,exp] / FPower[n,refIndex,exp]];
+                    ],
+                    {f,factList}
+                ];
+                sets[[i,3]] = sets[[i,3]] * expCoeff;
+                sets[[i,j]] = {{refFact}},
                 {j,4,Length[sets[[i]]]}
             ],
             {i,1,Length[sets]}
