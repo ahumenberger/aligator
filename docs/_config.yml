@@ -1,3 +1,4 @@
 theme: jekyll-theme-cayman
 title: ALIGATOR
 description: Automated Loop Invariant Generation by Algebraic Techniques Over the Rationals.
+highlighter: pygments
