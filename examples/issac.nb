@@ -10,17 +10,19 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[      3150,         95]
-NotebookOptionsPosition[      2895,         81]
-NotebookOutlinePosition[      3252,         97]
-CellTagsIndexPosition[      3209,         94]
+NotebookDataLength[      4679,        144]
+NotebookOptionsPosition[      4244,        123]
+NotebookOutlinePosition[      4601,        139]
+CellTagsIndexPosition[      4558,        136]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
 Notebook[{
+
+Cell[CellGroupData[{
 Cell[BoxData[{
  RowBox[{
-  RowBox[{"SetWorkingDirectory", "[", 
+  RowBox[{"SetDirectory", "[", 
    RowBox[{"FileNameJoin", "[", 
     RowBox[{"{", 
      RowBox[{
@@ -42,28 +44,24 @@ Cell[BoxData[{
        RowBox[{
         RowBox[{"5", 
          RowBox[{"(", 
-          RowBox[{"n", "+", "1"}], ")"}], "*", "t2"}], "+", 
+          RowBox[{"n", "+", "2"}], ")"}], "*", "t2"}], "+", 
         RowBox[{"6", 
          RowBox[{"(", 
           RowBox[{
-           RowBox[{
-            RowBox[{"(", 
-             RowBox[{"n", "-", "1"}], ")"}], "^", "2"}], " ", "+", " ", 
-           RowBox[{"3", 
-            RowBox[{"(", 
-             RowBox[{"n", "-", "1"}], ")"}]}], "+", "2"}], ")"}], "t1"}]}]}], 
-      ";", "\[IndentingNewLine]", 
+           RowBox[{"n", "^", "2"}], " ", "+", " ", 
+           RowBox[{"3", "n"}], "+", "2"}], ")"}], "t1"}]}]}], ";", 
+      "\[IndentingNewLine]", 
       RowBox[{"b", " ", ":=", " ", 
        RowBox[{"2", "b"}]}], ";", "\[IndentingNewLine]", 
       RowBox[{"c", " ", ":=", 
        RowBox[{"3", 
         RowBox[{"(", 
-         RowBox[{"n", "+", "1"}], ")"}], "c"}]}], ";", "\[IndentingNewLine]", 
+         RowBox[{"n", "+", "2"}], ")"}], "c"}]}], ";", "\[IndentingNewLine]", 
       
       RowBox[{"d", ":=", 
        RowBox[{
         RowBox[{"(", 
-         RowBox[{"n", "+", "1"}], ")"}], "d"}]}]}]}], "\[IndentingNewLine]", 
+         RowBox[{"n", "+", "2"}], ")"}], "d"}]}]}]}], "\[IndentingNewLine]", 
     "]"}], ",", "\[IndentingNewLine]", 
    RowBox[{"LoopCounter", "\[Rule]", "n"}], ",", "\[IndentingNewLine]", 
    RowBox[{"IniVal", "\[Rule]", 
@@ -77,10 +75,54 @@ Cell[BoxData[{
       RowBox[{"d", ":=", "1"}]}], "\[IndentingNewLine]", "}"}]}]}], 
   "\[IndentingNewLine]", "]"}]}], "Input",
  CellChangeTimes->{
-  3.694429230414239*^9, {3.694429345991637*^9, 3.6944293904487963`*^9}}]
+  3.694429230414239*^9, {3.694429345991637*^9, 3.6944293904487963`*^9}, {
+   3.6947783179694643`*^9, 3.69477833849984*^9}, {3.6949452534202223`*^9, 
+   3.694945254788971*^9}, {3.694954856736977*^9, 3.694954877146493*^9}}],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+Aligator.m 
+Automated Loop Invariant Generation by Algebraic Techniques Over the Rationals.
+Package written by Laura Kovacs \[LongDash] \[Copyright] TU Wien \[LongDash] \
+V 0.5 (2010-09-14)\
+\>", "Print",
+ CellFrame->0.5,
+ CellChangeTimes->{3.694954901561975*^9},
+ FontColor->RGBColor[0, 0, 0],
+ Background->RGBColor[0.796887, 0.789075, 0.871107]],
+
+Cell[BoxData["\<\"Method is complete!\"\>"], "Print",
+ CellFrame->0.5,
+ CellChangeTimes->{{3.694954878358968*^9, 3.694954901755911*^9}},
+ FontColor->RGBColor[0, 0, 0],
+ Background->RGBColor[0.796887, 0.789075, 0.871107]]
+}, Open  ]],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   SuperscriptBox["d", "2"], " ", 
+   SuperscriptBox[
+    RowBox[{"(", 
+     RowBox[{
+      RowBox[{"-", "6"}], "+", 
+      RowBox[{"a", "[", "1", "]"}]}], ")"}], "2"]}], "\[Equal]", 
+  SuperscriptBox[
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{"7", " ", "a"}], "-", 
+     RowBox[{"6", " ", "b", " ", "c", " ", 
+      RowBox[{"(", 
+       RowBox[{"1", "+", 
+        RowBox[{"a", "[", "1", "]"}]}], ")"}]}]}], ")"}], "2"]}]], "Output",
+ CellChangeTimes->{{3.6947783114013767`*^9, 3.694778339653461*^9}, 
+   3.6947788093452797`*^9, {3.694945242683288*^9, 3.6949452559775763`*^9}, 
+   3.694954847213788*^9, {3.6949548786424923`*^9, 3.694954901763397*^9}}]
+}, Open  ]]
 },
 WindowSize->{808, 902},
-WindowMargins->{{4, Automatic}, {Automatic, 4}},
+WindowMargins->{{0, Automatic}, {Automatic, 0}},
 FrontEndVersion->"11.0 for Mac OS X x86 (32-bit, 64-bit Kernel) (September \
 21, 2016)",
 StyleDefinitions->"Default.nb"
@@ -96,7 +138,14 @@ CellTagsIndex->{}
 *)
 (*NotebookFileOutline
 Notebook[{
-Cell[558, 20, 2333, 59, 474, "Input"]
+Cell[CellGroupData[{
+Cell[580, 22, 2341, 57, 474, "Input"],
+Cell[CellGroupData[{
+Cell[2946, 83, 357, 9, 75, "Print"],
+Cell[3306, 94, 220, 4, 41, "Print"]
+}, Open  ]],
+Cell[3541, 101, 687, 19, 66, "Output"]
+}, Open  ]]
 }
 ]
 *)
