@@ -1373,7 +1373,7 @@ HyperSolve[x_[y_]==rhs_,n_] :=
         eqn      = HomogeneousTransform[eqn,n] // PrintDebug["[HS] Homogeneous"];
         recOrder = RecurrenceOrder[eqn,n,x];
         hgTerms  = Hyper[eqn,x[n],Solutions->All] // PrintDebug["[HS] Solutions of Hyper"];
-        hgTerms  = (ToHg2[#,n]& /@ hgTerms) // PrintDebug["[HS] Solutions of ToHg"];
+        hgTerms  = (ToHg[#,n]& /@ hgTerms) // PrintDebug["[HS] Solutions of ToHg"];
         If [hgTerms == {},
             solvable = False,
             solvable = True;
@@ -1422,23 +1422,7 @@ FactorialSimplify[expr_] :=
                                 + 50 Count[#, _FactorialPower, {0, \[Infinity]}]) &)
     ];
 
-(* Copied from Hyper.m *)
-(* Fixed in order to deal with expressions like (-n - 1) *)
 ToHg[f_, n_] :=
-    Module[{ff = FactorTermsList[f]},
-        If[ff[[1]] != -1, 
-            ff = Factor[f];
-            ff = ff /. (a_. n + b_.)^k_. -> a^k (n + b/a)^k;
-            ff = If[Head[ff] === Times, List @@ ff, {ff}]
-        ];
-        ff = Replace[#, (n + b_.)^k_. :> (Factorial[b+n-1])^k]& /@ ff;
-        ff = Replace[#, c_ /; FreeQ[c, n] -> c^n]& /@ ff;
-        ff = Times @@ ff;
-        (* ff = a0 ff / (ff /. n -> n0); *)
-        Return[GosperSum`FS[ff, n]]
-    ];
-
-ToHg2[f_, n_] :=
     Module[{ff = Factor[f]},
         m1 = FactorTermsList[ff];
         ff = If[m1[[1]] == -1, ff * (-1), ff];
@@ -1453,7 +1437,6 @@ ToHg2[f_, n_] :=
         Return[ff]
     ];
 
-(* TODO Not used at the moment *)
 HomogeneousTransform[x_[y_]==rhs_,n_] :=
     Module[{newRec,newIniRules,shift,givenOrder,expectedOrder},
         rec = x[y] == rhs;
@@ -1650,7 +1633,7 @@ CleanPSolvableCheck[sys_,n_] :=
         expVars      = {};
         expBases     = {};
         auxVars      = {};
-        PrintDebug["Closed form system",cfSystem[[All,1]]];
+        PrintDebug["[PSolvableCheck] Closed form system",cfSystem[[All,1]]];
         (* Check: polynomial cfSystem - linear combination of exponentials and polys in n*)
         Do[
             recEq        = cfSystem[[i,1]];
@@ -1683,7 +1666,7 @@ CleanPSolvableCheck[sys_,n_] :=
                 expDepList = Equal[#,0]&/@expDepList;
                 {cfSystem[[All,2]],factIndices} = CanonicalSystem[cfSystem[[All,2]],n];
                 factVarRules = (FactorialPower[n + #,n] -> Unique[])& /@ factIndices;
-                Print[factVarRules];
+                PrintDebug["[PSolvableCheck] Factorial rewrite rules", factVarRules];
                 auxVars = Union[auxVars,Values[factVarRules]];
                 (* rewrite exponentials in cfSystem by the new variables *)
                 k = 0;
@@ -1702,25 +1685,7 @@ CleanPSolvableCheck[sys_,n_] :=
                           ];
                     factVars = Table[f[i],{i,1,Length[solSet]-3}];
                     rec = Flatten[Dot @@ recurrence][[1]];
-                    (* var = If[solSet] *)
-                    (* Print[]; *)
-                    (* Print[var.solSet[[3]].solSet[[4]]]; *)
-        (*             expBases  = cfSystem[[i,3]];
-                    coeffTerm = 0;
-                    If[ expBases == {},
-                        newRecEq = recEq,
-                        (* otherwise, it has exponentials *)
-                        Do[
-                            coeffList = solSet[[3,j]];
-                            If[ solSet[[2,j]]==1,
-                                coeffTerm = coeffTerm+Simplify[Sum[coeffList[[u]]*n^(u-1),{u,1,Length[coeffList]}]],
-                                k = k+1;
-                                coeffTerm = coeffTerm+Simplify[Sum[coeffList[[u]]*n^(u-1),{u,1,Length[coeffList]}]]*y[k]
-                            ],
-                            {j,1,Length[solSet[[2]]]}
-                        ];
-                        newRecEq = recEq[[1]]==coeffTerm
-                    ]; *)
+
                     newRecSystem = Append[newRecSystem,recEq[[1]] == rec],
                     {i,1,Length[cfSystem]}
                 ];
@@ -1748,7 +1713,6 @@ CanonicalSystem[solSets_,n_] :=
     Module[{sets,indices,refFact,fact,index,tmp,i,j,k},
         sets = solSets;
         indices = IntegerDistance @ Sort @ Cases[sets,FactorialPower[n+i_.,n]->i,Infinity,Heads->True];
-        Print[indices];
         Do[
             If[Length[sets[[i]]] < 4, Continue[]];
             Do[
