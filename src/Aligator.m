@@ -1381,8 +1381,12 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             sval     = Table[x[i],{i,0,Length[hgTerms]-1}];
             expCoeff = LinearSolve[matrix,sval];
             hgTerms  = FactorialSimplify[hgTerms] // PrintDebug["[HS] Simplified terms"];
+
+            (* Shift closed form by recOrder-1 s.t. all closed forms correspond to the same loop iteration *)
+            hgTerms = hgTerms /. n -> n+recOrder-1;
+
             cf       = (x[n] == hgTerms.expCoeff) // PrintDebug["[HS] Closed form"];
-            (* Replace every term which contains no exponential sequence by 1 *)
+
             expVars = Cases[#, (r_^(c_.*n + i_.)) -> r^c, {0, Infinity}, Heads -> True]& /@ hgTerms;
             expVars = (expVars /. {} -> {1} // Flatten) // PrintDebug["[HS] Exponential sequences"];
 
@@ -1396,8 +1400,8 @@ HyperSolve[x_[y_]==rhs_,n_] :=
             ];
 
             refFactList = FactorList[factCoeff[[1]]];
-            refFactList = Cases[refFactList, {FactorialPower[n + b_.,n],k_},Infinity];
-            refFact     = Times @@ (#[[1]]^#[[2]]& /@ refFactList);
+            refFactList = Cases[refFactList, {FactorialPower[n + b_.,_],k_} -> {b,k},Infinity];
+            refFact     = Times @@ (FactorialPower[n+#[[1]],n]^#[[2]]& /@ refFactList);
             fact        = (FactorialSimplify[# / refFact]& /@ factCoeff) // PrintDebug["[HS] Reference factorial"];
 
             If[!FreeQ[fact,FactorialPower],
@@ -1835,6 +1839,7 @@ EqRecSolve[x_[y_]==rhs_,n_] :=
             ];
         ];
         If[solvable,
+            (* TODO Is this needed anymore? *)
             {cfRec,solSet} = {ShiftBackClosedForm[cfRec,n,needShift],ShiftBackSolSet[solSet,n,needShift]}
         ];
         (* Which[
