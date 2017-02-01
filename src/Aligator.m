@@ -85,7 +85,7 @@ We do not expect that it works with earlier/later versions.*)
 Aligator`Private`Version = "0.5 (2010-09-14)";
 
 
-BeginPackage["Aligator`",{"Dependencies`","Hyper`","GosperSum`"}];
+BeginPackage["Aligator`",{"RISC`Dependencies`","RISC`fastZeil`","Hyper`","GosperSum`"}];
 
 
 aligator::InputError1 = "Not appropiate Aligator-input. `1` must be of the form WHILE[loop-condition, loop-body].\n
@@ -2227,15 +2227,6 @@ PrintDebug[msg_, expr_] :=
 
 (* Operator form of PrintDebug; allows statements like: var = expr // PrintDebug["Value of var"] *)
 PrintDebug[msg_][expr_] := PrintDebug[msg, expr];
-
-Needs["Dependencies`"]
-Needs["zb`"]
-Needs["Hyper`"]
-
-(*<<Dependencies.m*)
-
-
-(*<<zb.m*)
 
 
 End[];
