@@ -1356,13 +1356,14 @@ ToHg[f_, n_] :=
     Module[{ff = Factor[f]},
         m1 = FactorTermsList[ff];
         ff = If[m1[[1]] == -1, ff * (-1), ff];
-        ff = Factor[ff];
-        ff = ff /. (a_. n + b_.)^k_. -> a^k (n + b/a)^k;
-        ff = If[Head[ff] === Times, List @@ ff, {ff}];
-        ff = Replace[#, (n + b_.)^k_. :> (FactorialPower[n+b-1,n])^k]& /@ ff;
-        ff = Replace[#, c_ /; FreeQ[c, n] -> c^n]& /@ ff;
+        ff = FactorList[ff];
+        ff = ff /. {(a_. n + b_.),k_} -> {{a,k},{(n + b/a),k}};
+        ff = Cases[ff, {c_, b_} /; Head[c] =!= List -> {c, b}, Infinity, Heads -> True];
+        (* ff = If[Head[ff] === Times, List @@ ff, ff]; *)
+        ff = Replace[ff, {(n + b_.),k_} -> {FactorialPower[n+b-1,n],k}, Infinity, Heads -> True];
+        ff = Replace[#, {c_,e_} /; FreeQ[c, n] -> {c,e*n}]& /@ ff;
         ff = If[m1[[1]] == -1, Append[ff,(-1)^n], ff];
-        ff = Times @@ ff;
+        ff = Times @@ (#[[1]]^#[[2]]& /@ ff);
         (* ff = a0 ff / (ff /. n -> n0); *)
         Return[ff]
     ];
