@@ -29,9 +29,9 @@ Automated polynomial Loop Invariant Generation by Algebraic Techniques Over the 
 (*   We do not expect that it works with earlier/later versions.                          *)
 (*                                                                                        *)
 (* LICENCE:                                                                               *)
-(*   This software package is free. However, please send an email to                      *)
-(*   lkovacs@complang.tuwien.ac.at and cite this work appropiately, whenever you          *)
-(*   redistribute it and/or modify it.                                                    *)
+(*   This software package is licensed under the MIT License.                             *)
+(*   However, please send an email to ahumenbe@forsyte.at and cite this work              *)
+(*   appropiately, whenever you redistribute it and/or modify it.                         *)
 
 (* -------------------------------------------------------------------------------------- *)
 
