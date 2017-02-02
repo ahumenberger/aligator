@@ -44,32 +44,27 @@ Automated polynomial Loop Invariant Generation by Algebraic Techniques Over the 
 Aligator`Private`Version = "0.5 (2010-09-14)";
 
 
-BeginPackage["Aligator`",{"RISC`Dependencies`","RISC`fastZeil`","Hyper`","GosperSum`"}];
-
+BeginPackage["Aligator`",{"RISC`fastZeil`","RISC`Dependencies`","Hyper`"}];
 
 aligator::InputError1 = "Not appropiate Aligator-input. `1` must be of the form WHILE[loop-condition, loop-body].\n
 Given loop condition is not appropiate - it has to be a NON-EMPTY BOOLEAN CONDITION (without :=)!";
-
 
 aligator::InputError2 = "Not appropiate Aligator-input.`1` must be of the form WHILE[loop-condition, loop-body].
 Given loop-body has to be a sequence of the form: s0; IF[test, s1, s2]; s3, \n 
 where s0, s1, s3 are SEQUENCES OF ASSIGNMENTS, s2 is a SEQUNECE OF ASSIGNMENTS or IF-STATEMENT, and all conditions are NON-EMPTY BOOLEAN CONDITIONS (without :=)! \n
 Hint: check also for spellings (e.g. := instead of =, IF instead of If, ; instead of ,)!";
 
-
 aligator::InputError3 = "Not appropiate Aligator-input.`1` must be of the form WHILE[loop-condition, loop-body].\n
 WHILE has 2 arguments only!";
 
-
 aligator::InputError4 = "Not appropiate Aligator-input.`1` must be of the form WHILE[loop-condition, loop-body].\n
 Given input must be a WHILE loop!";
-
 
 aligator::InputCorrect = "Appropiate Aligator-input.";
 
 
 Unprotect[`Aligator, WHILE, IF,Body,
-        InputCheck,AssgnCheck,IniVal,
+        InputCheck,AssgnCheck,IniVal,LoopCounter,
         LoopTransform,IfWhileTransform,LoopCondCheck,LoopBodyCheck,CheckIfSeq,FromLoopToRecs,
         RecSystem, RecEqs, RecSolve, RecRelations, FlattenRecurrences, FlattenBody,AssgnToChange,NormedVarList,
                    SimplifySeq, SimplifyVarList,ShiftRec,ProperRecVars,VarShiftChange,
@@ -85,53 +80,29 @@ Unprotect[`Aligator, WHILE, IF,Body,
         CompletenessCheck,UnsortedComplement
 ];
 
-
-SetAttributes[ Aligator, HoldAll];
-
-
-SetAttributes[ AssgnCheck, HoldAll];
-
-
-SetAttributes[ InputCheck, HoldAll];
-
-
-SetAttributes[ LoopCondCheck, HoldAll];
-
-
-SetAttributes[ LoopBodyCheck, HoldAll];
-
-
-SetAttributes[ WHILE, HoldAll];
+SetAttributes[Aligator, HoldAll];
+SetAttributes[AssgnCheck, HoldAll];
+SetAttributes[InputCheck, HoldAll];
+SetAttributes[LoopCondCheck, HoldAll];
+SetAttributes[LoopBodyCheck, HoldAll];
+SetAttributes[WHILE, HoldAll];
+SetAttributes[IF, HoldAll];
+SetAttributes[Body, HoldAll];
+SetAttributes[LoopTransform, HoldAll];
+SetAttributes[IfWhileTransform, HoldAll];
+SetAttributes[CheckIfSeq, HoldAll];
+(* SetAttributes[FromLoopToRecs, HoldAll]; *)
+SetAttributes[RecSystem, HoldAll];
+SetAttributes[RecEqs, HoldAll];
 
 
-SetAttributes[ IF, HoldAll];
-
-
-SetAttributes[ Body, HoldAll];
-
-
-SetAttributes[ LoopTransform, HoldAll];
-
-
-SetAttributes[ IfWhileTransform, HoldAll];
-
-
-SetAttributes[ CheckIfSeq, HoldAll];
-
-
-(*SetAttributes[ FromLoopToRecs, HoldAll];*)
-
-
-SetAttributes[ RecSystem, HoldAll];
-
-
-SetAttributes[ RecEqs, HoldAll];
-
-
-Aligator::usage = "Aligator[WHILE[c1, s1; IF[c2,s2,s3]; s2], IniVal -> {assignments}]"<>" generates the polynomial invariant of the given loop "<>"if the loop is P-solvable. The initial values of the variables are optionally specified by IniVal.\n\n"<>"Current usage: Aligator[RecEq,VariableTuples,SummationVar]"<>" where VariableTuple is a list of {x[n],x}";
-
+Aligator::usage = "Aligator[WHILE[c1, s1; IF[c2,s2,s3]; s2], LoopCounter->i, IniVal -> {assignments}] " <>
+    "generates the polynomial invariant of the given loop if the loop is P-solvable.\n" <>
+    "The loop counter variable is optionally specified by LoopCounter.\n" <>
+    "The initial values of the variables are optionally specified by IniVal.";
 
 IniVal::usage = "Option to Aligator for specifying initial values of variables.";
+LoopCounter::usage = "Option to Aligator for specifying the loop counter variable";
 
 
 Begin["`Private`"];
@@ -156,7 +127,7 @@ If[ $Notebooks,
 (* *************************************************** *)
 
 
-Options[Aligator] = {IniVal->{},LoopCounter->n};
+Options[Aligator] = {IniVal->{},LoopCounter->i};
 
 RecEqs[{seq_:CompoundExpression[]}] := RecEqs[seq,{}]
 
