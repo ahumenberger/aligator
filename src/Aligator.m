@@ -41,8 +41,8 @@ Automated polynomial Loop Invariant Generation by Algebraic Techniques Over the 
 (* *************************************************** *)
 
 
-Aligator`Private`Version = "0.5 (2010-09-14)";
-
+(* Aligator`Private`Version = "0.5 (2010-09-14)"; *)
+Aligator`Private`Version = "0.6 (2017-02-03)";
 
 BeginPackage["Aligator`",{"RISC`fastZeil`","RISC`Dependencies`","Hyper`"}];
 
@@ -117,9 +117,12 @@ If[ $Notebooks,
     CellPrint[Cell[#,
     "Print",FontColor->RGBColor[0,0,0],CellFrame->0.5,Background->RGBColor[0.796887,0.789075,0.871107]]]&,
     Print
-]["Aligator.m \n"<>"Automated Loop Invariant Generation by Algebraic Techniques Over the Rationals.\n"<>
-"Package written by Laura Kovacs"
-<>" \[LongDash] \[Copyright] TU Wien \[LongDash] V "<>Aligator`Private`Version];
+][
+    "Aligator.m \n" <>
+    "Automated Loop Invariant Generation by Algebraic Techniques Over the Rationals.\n" <>
+    "Package written by Laura Kovacs and Andreas Humenberger" <>
+    " \[LongDash] \[Copyright] TU Wien \[LongDash] V " <> Aligator`Private`Version
+];
 
 
 (* *************************************************** *)
