@@ -520,7 +520,7 @@ RecSystem[assgn__] :=
         recOrders   = Association @ Flatten @ (MaximalBy[Value] @ Cases[#,x_[n+b_.] -> (x->b),Infinity]& /@ recEqSystem);
         $InitValues = DeleteCases[recVarList, {x_[_],x_}];
         $InitValues = ($InitValues /. x_[n + b_.] :> x[n + b + recOrders[x]]);
-        $InitValues = ($InitValues /. {x_,y_} -> (x -> y[n+1]));
+        $InitValues = Cases[$InitValues, {x_,y_} -> (x -> y[n+1])];
         $InitValues = $InitValues /. assignRules;
         $InitValues = $InitValues /. n -> 0;
 
