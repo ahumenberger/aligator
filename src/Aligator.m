@@ -137,8 +137,13 @@ Aligator[c_, opts__ : OptionPattern[]] :=
         SetOptions[Aligator,LoopCounter->OptionValue[Aligator,Unevaluated[{opts}],LoopCounter]];
         invariants    = Aligator[c];
         givenIniRecs  = OptionValue[Aligator,Unevaluated[{opts}],IniVal,RecEqs];
-        givenIniRules = InitialSubstitutions[givenIniRecs,{}];
-        Simplify[invariants/.givenIniRules]
+        givenIniRules = Association @ InitialSubstitutions[givenIniRecs,{}];
+        keys = Keys[$InitValues];
+        vals = Values[$InitValues];
+        vals = vals /. givenIniRules;
+        $InitValues = Thread[keys -> vals];
+        $InitValues = AssociateTo[givenIniRules, $InitValues] // PrintDebug["Final initial values"];
+        Simplify[invariants /. $InitValues]
     ]
 
 
@@ -501,11 +506,21 @@ RecSystem[List[assgn__]] :=
 
 RecSystem[assgn__] :=
     Module[ {assgAll,recAssg,n = Unique[],recVars,recEqSystem, recVarList,finalRecEqSystem,finalRecVarList,flattenRecEqSystem,flattenRecVarList,allVars,recChangedVarList,notRecVar,notRecChangedVars,removeVar,normVal,normalizedRecEqSystem,normalizedRecVarList,normedVars,shiftVarsNormed,i},
-        assgAll                   = RecEqs[assgn,{}];
-        {recAssg,recVars}         = FlattenBody[assgAll,{},{}];
-        {recEqSystem,recVarList} = RecRelations[recAssg,n,{},{},recVars];
-        {recEqSystem,recVarList}  = FlattenRecurrences[recEqSystem,n,recEqSystem,recVarList];
-        recEqSystem    = ShiftRec[#,n]&/@recEqSystem;
+        assgAll                  = RecEqs[assgn,{}];
+        {recAssg,recVars}        = FlattenBody[assgAll,{},{}];
+        {recRel,recVarList}      = RecRelations[recAssg,n,{},{},recVars];
+        {recEqSystem,recVarList} = FlattenRecurrences[recRel,n,recRel,recVarList];
+        recEqSystem              = ShiftRec[#,n]&/@recEqSystem;
+
+        (* Create replacement rules for starting values; needed if recurrences of order > 1 are involved *)
+        assignRules = Cases[recRel, x_[y_] == rhs_ /; FreeQ[rhs,x] && FreeQ[recEqSystem,x] -> (x[y] -> rhs)];
+        recOrders   = Association @ Flatten @ (MaximalBy[Value] @ Cases[#,x_[n+b_.] -> (x->b),Infinity]& /@ recEqSystem);
+        $InitValues = DeleteCases[recVarList, {x_[_],x_}];
+        $InitValues = ($InitValues /. x_[n + b_.] :> x[n + b + recOrders[x]]);
+        $InitValues = ($InitValues /. {x_,y_} -> (x -> y[n+1]));
+        $InitValues = $InitValues /. assignRules;
+        $InitValues = $InitValues /. n -> 0;
+
         recEqSystem    = recEqSystem/.OptionValue[Aligator,LoopCounter]->n;
         recChangedVars = ProperRecVars[recEqSystem,n,{}];
         If[ recChangedVars == {},
