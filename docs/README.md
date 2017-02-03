@@ -17,7 +17,11 @@ We provide an introductory example for computing all polynomial invariants among
 the program variables `a`, `b`, `c` and `d`.
 
 ```
-<< Aligator` (* Load Aligator *)
+(* Load RISC packages separately; necessary due to a dependency loading issue *)
+Needs["RISC`fastZeil`"];
+Needs["RISC`Dependencies`"];
+(* Load Aligator *)
+<< Aligator`
 
 Aligator[
   WHILE[y > 0,
@@ -49,11 +53,10 @@ representation of all polynomial invariants among those.
 ```
 
 If no starting values (`IniVal`) are given, then the invariants contain the
-starting values in the form of `a[n]` corresponding to the n-th value of the
-sequence represented by `a`.
+starting values in the form of `a[0]` corresponding to the initial value of `a`.
 
 ```
-d^2 (-6 a[0] + a[1])^2 b[0]^2 c[0]^2 == (6 b c (a[0] + a[1]) - 7 a b[0] c[0])^2 d[0]^2
+d^2 b[0]^2 c[0]^2 (a[0] - 6 t2[0])^2 == d[0]^2 (7 a b[0] c[0] - 6 b c (a[0] + t2[0]))^2
 ```
 
 More examples are provided in the repository.
