@@ -130,7 +130,7 @@ If[ $Notebooks,
 (* *************************************************** *)
 
 
-Options[Aligator] = {IniVal->{},LoopCounter->i};
+Options[Aligator] = {IniVal -> {}, LoopCounter -> i, PrintBasis -> False};
 
 RecEqs[{seq_:CompoundExpression[]}] := RecEqs[seq,{}]
 
@@ -138,6 +138,7 @@ Aligator[c_, opts__ : OptionPattern[]] :=
     Module[ {invariants = {},givenIniRecs,givenIniRules},
         (* Specific option handling to avoid evaluation of initial values. *)
         SetOptions[Aligator,LoopCounter->OptionValue[Aligator,Unevaluated[{opts}],LoopCounter]];
+        SetOptions[Aligator,PrintBasis->OptionValue[Aligator,Unevaluated[{opts}],PrintBasis]];
         invariants    = Aligator[c];
         givenIniRecs  = OptionValue[Aligator,Unevaluated[{opts}],IniVal,RecEqs];
         givenIniRules = Association @ InitialSubstitutions[givenIniRecs,{}];
@@ -146,7 +147,10 @@ Aligator[c_, opts__ : OptionPattern[]] :=
         vals = vals /. givenIniRules;
         $InitValues = Thread[keys -> vals];
         $InitValues = AssociateTo[givenIniRules, $InitValues] // PrintDebug["Final initial values"];
-        Simplify[invariants /. $InitValues]
+        invariants = invariants /. $InitValues;
+        invariants = If[OptionValue[Aligator, PrintBasis], invariants, And @@ (Equal[#,0]& /@ invariants)];
+        PrintDebug["Invariants", invariants];
+        Simplify[invariants]
     ]
 
 
@@ -170,11 +174,7 @@ Aligator[c_] :=
             (*Print["With If-statements!"];*)
             invariants = InvLoopCond[loops]
         ];
-        (* transform polys into poly equalities *)
-        If[invariants == {},
-            Print["No invariants found!"]; {},
-            Simplify[And@@(Equal[#,0]&/@invariants)]
-        ]
+        invariants
     ]
 
 
