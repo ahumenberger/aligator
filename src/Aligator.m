@@ -2129,12 +2129,14 @@ GroebnerBasis[RecDep/.RewriteRules,SimpleRecVars]
 ]
 *)
 
-(* Uncomment/Comment Print[...] to enable/disable       *)
-(* Note that PrintDebug returns the original expression *)
+(*
+ * Set $debugPrint = Print to enable debug output 
+ * Note that PrintDebug returns the original expression 
+ *)
 PrintDebug[msg_, expr_] :=
     Block[{strMsg},
         strMsg = If[msg == "", msg, msg <> ": "]; 
-        (* Print[strMsg,expr]; *)
+        $debugPrint[strMsg,expr];
         expr
     ];
 
