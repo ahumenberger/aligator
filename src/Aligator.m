@@ -2148,3 +2148,37 @@ End[];
 
 
 EndPackage[];
+
+(* -------------------------------------------------------------------------- *)
+(*  Package AligatorTest                                                      *)
+(* -------------------------------------------------------------------------- *)
+
+BeginPackage["AligatorTest`",{"Aligator`"}];
+
+SetAttributes[AligatorTest, HoldAll];
+
+Options[AligatorTest] = {IniVal -> {}, LoopCounter -> i, Iterations -> 100};
+
+AligatorTest[WHILE[cond_, assign_], {vars__}, opts__:OptionsPattern[]] :=
+    Block[{body = HoldForm @ assign, ivals, vars, lc, i, failcount = 0},
+        iter = OptionValue[AligatorTest, Unevaluated @ {opts}, Iterations];
+        lc   = OptionValue[AligatorTest, Unevaluated @ {opts}, LoopCounter];
+
+        inv = Aligator[WHILE[cond, assign], opts];
+        Print["Invariant: ", inv];
+
+        body  = body /. SetDelayed -> Set;
+        body  = body /. lc -> i;
+        ivals = OptionValue[AligatorTest, Unevaluated @ {opts}, IniVal, HoldForm];
+        ivals = ivals /. SetDelayed -> Set;
+        
+        ReleaseHold @ ivals;
+        Do[
+            ReleaseHold @ body;
+            If[inv =!= True, Print["Failure: ", inv]; failcount++],
+            {i, 0, iter}
+        ];
+        If[failcount == 0, Print["Invariant correct for n = 1,...,", iter]]
+    ]
+
+EndPackage[];
