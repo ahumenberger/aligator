@@ -81,6 +81,7 @@ Unprotect[`Aligator, WHILE, IF,Body,
 ];
 
 SetAttributes[Aligator, HoldAll];
+SetAttributes[AligatorInput, HoldAll];
 SetAttributes[AssgnCheck, HoldAll];
 SetAttributes[InputCheck, HoldAll];
 SetAttributes[LoopCondCheck, HoldAll];
@@ -134,27 +135,30 @@ Options[Aligator] = {IniVal -> {}, LoopCounter -> i, PrintBasis -> False};
 
 RecEqs[{seq_:CompoundExpression[]}] := RecEqs[seq,{}]
 
-Aligator[c_, opts__ : OptionPattern[]] :=
-    Module[ {invariants = {},givenIniRecs,givenIniRules},
+Aligator[c_, opts : OptionsPattern[]] :=
+    Module[ {invariants = {},givenIniRecs,givenIniRules,vals,keys},
         (* Specific option handling to avoid evaluation of initial values. *)
         SetOptions[Aligator,LoopCounter->OptionValue[Aligator,Unevaluated[{opts}],LoopCounter]];
         SetOptions[Aligator,PrintBasis->OptionValue[Aligator,Unevaluated[{opts}],PrintBasis]];
-        invariants    = Aligator[c];
+        invariants    = AligatorInput[c];
         givenIniRecs  = OptionValue[Aligator,Unevaluated[{opts}],IniVal,RecEqs];
         givenIniRules = Association @ InitialSubstitutions[givenIniRecs,{}];
+        Print[givenIniRules];
+        Print[invariants];
         keys = Keys[$InitValues];
         vals = Values[$InitValues];
         vals = vals /. givenIniRules;
         $InitValues = Thread[keys -> vals];
         $InitValues = AssociateTo[givenIniRules, $InitValues] // PrintDebug["Final initial values"];
         invariants = invariants /. $InitValues;
-        invariants = If[OptionValue[Aligator, PrintBasis], invariants, And @@ (Equal[#,0]& /@ invariants)];
+        invariants = If[OptionValue[Aligator, Unevaluated[{opts}], PrintBasis], invariants, And @@ (Equal[#,0]& /@ invariants)];
+        Print[invariants];
         PrintDebug["Invariants", invariants];
         Simplify[invariants]
     ]
 
 
-Aligator[c_] :=
+AligatorInput[c_] :=
     Module[ {sw,ifCheck,loops,invariants = {}},
         sw = InputCheck[c];
         If[ sw == 0,
@@ -163,15 +167,15 @@ Aligator[c_] :=
         (* correct input - proceed! *)
         ifCheck = CheckIfSeq[c];
         (* Print["If-statements: ",ifCheck]; *)
-        loops = IfWhileTransform[c,Body[],Body[]];
+        loops = IfWhileTransform[c,Body[],Body[]] // PrintDebug["IfWhileTransform"];
         (* Print["Number of inner loops:", Length[loops]]; *)
         (* Print["Loops:",loops]; *)
         If[ !ifCheck, 
             (* no conditional branches - invariant generation for loops with assignments only*)
-            (* Print["No If-statements!"]; *)
+            Print["No If-statements!"];
             invariants = InvLoopAssg[loops],
             (* with conditional branches - invariant generation for loops with assignments only*)
-            (*Print["With If-statements!"];*)
+            Print["With If-statements!"];
             invariants = InvLoopCond[loops]
         ];
         invariants
@@ -1586,7 +1590,7 @@ CleanPSolvableCheck[sys_,n_] :=
         (* Check: polynomial cfSystem - linear combination of exponentials and polys in n*)
         Do[
             recEq        = cfSystem[[i,1]];
-            solSet       = cfSystem[[i,2]];
+            solSet       = cfSystem[[i,2]] // PrintDebug["solset"];
             expCoeffList = Flatten[solSet[[3]]];
             expBases     = cfSystem[[i,3]];
             polyCoeff    = Apply[And,Table[PolynomialQ[expCoeffList[[j]],n],{j,1,Length[expCoeffList]}]];
@@ -1841,10 +1845,10 @@ InvLoopAssg[loop_] :=
 InvLoopCond[loopList_] :=
     Module[ {closedFormsList,innerLoopPerm,allLoopVars,innerLoop,innerLoopRules,innerFinVars,t = Unique[],perm,invIdeal = {},i,permIdeal = {},sumIntersectionIdeal = {},appendableCF,appendablePerms},
 (*Print["Start CfIFLoopSeq."];*)
-        {closedFormsList,allLoopVars} = CfIfLoopSeq[loopList,{},{}];
+        {closedFormsList,allLoopVars} = CfIfLoopSeq[loopList,{},{}] // PrintDebug["CfIFLoopSeq"];
         (* make common variables *)
         (*Print["Start UniformInnerLoopVars."];*)
-        closedFormsList = UniformInnerLoopVars[closedFormsList,allLoopVars,{}];
+        closedFormsList = UniformInnerLoopVars[closedFormsList,allLoopVars,{}] // PrintDebug["UniformInnerLoopVars"];
         innerLoopPerm = Permutations[closedFormsList];
         (* intersection ideal of  all permutation *)
         (* first is the identity permutation *)
@@ -1853,11 +1857,11 @@ InvLoopCond[loopList_] :=
         invIdeal = InvIdealLoopSeq[perm];
         (* compute the invariant ideals of the rest of permutations; take intersection*)
         Do[
-        perm = innerLoopPerm[[i]];
-        permIdeal = InvIdealLoopSeq[perm];
-        sumIntersectionIdeal = Union[t*invIdeal,(1-t)*permIdeal];
-        invIdeal = GroebnerBasis[sumIntersectionIdeal,allLoopVars,{t}],
-        {i,2,Length[innerLoopPerm]}
+            perm                 = innerLoopPerm[[i]];
+            permIdeal            = InvIdealLoopSeq[perm];
+            sumIntersectionIdeal = Union[t*invIdeal,(1-t)*permIdeal];
+            invIdeal             = GroebnerBasis[sumIntersectionIdeal,allLoopVars,{t}],
+            {i,2,Length[innerLoopPerm]}
         ];
         (* do the filtering on the candidate polys from invIdeal *)
          (*Print["Candidate Polynomial Invariants: ",invIdeal]; *)
@@ -1915,8 +1919,9 @@ CfIfLoopSeq[{innerLoop_,innerLoopList___},cfSystemList_,outerLoopVars_] :=
     Module[ {recSystem,VarList,CFSystem,recVar,expVars,finVars,iniVars,AlgDep,newCFSystem,innerCfSytem},
 (*Print["Start FromLoopToRecs."];*)
         {recSystem,VarList,recVar} = FromLoopToRecs[innerLoop];
-       (*Print["recSystem: ",recSystem];Print["VarList: ",VarList];Print["recVar: ",recVar];Print["Start RecSolve."];*)
-        {CFSystem,recVar,expVars,finVars,iniVars,AlgDep} = RecSolve[recSystem,VarList,recVar];
+        (*Print["recSystem: ",recSystem];Print["VarList: ",VarList];Print["recVar: ",recVar];Print["Start RecSolve."];*)
+        (* TODO deal with auxVars *)
+        {CFSystem,recVar,expVars,finVars,iniVars,AlgDep,auxVars} = RecSolve[recSystem,VarList,recVar];
         innerCfSytem = {CFSystem,recVar,expVars,finVars,iniVars,AlgDep};
         newCFSytem = Append[cfSystemList,innerCfSytem];
         CfIfLoopSeq[{innerLoopList},newCFSytem,Union[outerLoopVars,finVars]]
@@ -1973,30 +1978,32 @@ InvIdealLoopSeq[permSeq_] :=
 CompletenessCheck[permList_,closedFormsOfPerm_,filteredPolys_,appendableClosedForms_,firstItIdeal_,allLoopVars_] :=
     Module[ {secondIterationList = {},i,perm,loopsToAppend,newLoopSeq,invIdeal,permIdeal,sumIntersectionIdeal,t,posLast,checkIdeal,reductionResult},
         Do[
-        perm = permList[[i]];
-        (*each permutation, e.g. S1...Sk, construct S1...Sk Sj, j!=k*)
-        posLast = Flatten[Position[closedFormsOfPerm,Last[perm]]][[1]];
-        loopsToAppend = Delete[appendableClosedForms,posLast];
-        newLoopSeq = Append[perm,#]&/@loopsToAppend;
-        secondIterationList = Join[secondIterationList,newLoopSeq]
-        ,{i,1,Length[permList]}
+            perm = permList[[i]];
+            (* each permutation, e.g. S1...Sk, construct S1...Sk Sj, j!=k *)
+            posLast             = Flatten[Position[closedFormsOfPerm,Last[perm]]][[1]];
+            loopsToAppend       = Delete[appendableClosedForms,posLast];
+            newLoopSeq          = Append[perm,#]&/@loopsToAppend;
+            secondIterationList = Join[secondIterationList,newLoopSeq],
+            {i,1,Length[permList]}
         ];
         invIdeal = firstItIdeal;
-        (* compute the invariant ideals of the rest of permutations; take intersection*)
+        (* compute the invariant ideals of the rest of permutations; take intersection *)
         Do[
-        perm = secondIterationList[[i]];
-        permIdeal = InvIdealLoopSeq[perm];
-        sumIntersectionIdeal = Union[t*invIdeal,(1-t)*permIdeal];
-        invIdeal = GroebnerBasis[sumIntersectionIdeal,allLoopVars,{t}],
-        {i,1,Length[secondIterationList]}
+            perm                 = secondIterationList[[i]];
+            permIdeal            = InvIdealLoopSeq[perm];
+            sumIntersectionIdeal = Union[t*invIdeal,(1-t)*permIdeal];
+            invIdeal             = GroebnerBasis[sumIntersectionIdeal,allLoopVars,{t}],
+            {i,1,Length[secondIterationList]}
         ];
         (* ideal equality check invIdeal==filteredPolys *)
-        (*checkIdeal=GroebnerBasis[Union[filteredPolys,invIdeal],allLoopVars];*)
+        (* checkIdeal=GroebnerBasis[Union[filteredPolys,invIdeal],allLoopVars]; *)
         reductionResult = Union[#[[2]]&/@Table[PolynomialReduce[invIdeal[[i]],filteredPolys],{i,1,Length[invIdeal]}]];
-        (*If[(Complement[checkIdeal,filteredPolys]=={}) || (Complement[checkIdeal,invIdeal]=={}),*)
-        If[ (filteredPolys=={} && invIdeal=={})
-        ||
-        ((Length[filteredPolys]==Length[invIdeal]) &&  (Length[reductionResult]==1) && (NumberQ[reductionResult[[1]]]) && (reductionResult[[1]]==0)),
+        (* If[(Complement[checkIdeal,filteredPolys]=={}) || (Complement[checkIdeal,invIdeal]=={}), *)
+        If[ (filteredPolys=={} && invIdeal=={}) ||
+                ((Length[filteredPolys]==Length[invIdeal]) 
+                    && (Length[reductionResult]==1) 
+                    && (NumberQ[reductionResult[[1]]]) 
+                    && (reductionResult[[1]]==0)),
             Print["Method is complete!"],(* after filtering + additional iteration!"],*)
             Print["Cannot determine completeness of the method!"]
         ]
@@ -2136,7 +2143,7 @@ GroebnerBasis[RecDep/.RewriteRules,SimpleRecVars]
 PrintDebug[msg_, expr_] :=
     Block[{strMsg},
         strMsg = If[msg == "", msg, msg <> ": "]; 
-        $debugPrint[strMsg,expr];
+        Print[strMsg,expr];
         expr
     ];
 
