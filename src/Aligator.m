@@ -1831,6 +1831,36 @@ InvLoopAssg[loop_] :=
     ]
 
 
+(**
+ * Computes the invariants for a loop with nested conditionals
+ * Returns the ideal after repeated execution of S1,...,Sk
+ **)
+
+InvLoopSeq[loopList_] :=
+    Module[{},
+        {cfList, loopVars} = CfIfLoopSeq[loopList, {}, {}];
+        cfList  = UniformInnerLoopVars[cfList, loopVars, {}] // PrintDebug["[InvLoopSeq] List of closed forms"];
+        loopSeq = cfList;
+        count   = 0;
+        ideal   = {};
+        PrintDebug["[InvLoopSeq] Sequence of inner loops", Column[loopSeq] // OutputForm];
+        invIdeal = InvIdealLoopSeq[loopSeq] // PrintDebug["[InvLoopSeq] New invariants"];
+        While[ideal != invIdeal,
+            ideal = invIdeal;
+            Do[
+                loop    = cfList[[ Mod[count, Length[cfList]] + 1 ]];
+                loop    = (loop /. loop[[2]][[1]] -> Unique[]);
+                loopSeq = Append[loopSeq, loop];
+                count   = count + 1,
+                {Length[cfList]}
+            ];
+            PrintDebug["[InvLoopSeq] Sequence of inner loops", Column[loopSeq] // OutputForm];
+            invIdeal = InvIdealLoopSeq[loopSeq] // PrintDebug["[InvLoopSeq] New invariants"];
+        ];
+        PrintDebug["[InvLoopSeq] Number of appended inner loops", count];
+        Simplify[ideal]
+    ]
+
 (* ******************************************************************************************** *)
 (* Computes the invariants for a loop with nested conditionals ******************************** *)
 (* Input: smth of the form {Body[S1],...,Body[Sk]}, where S1,...,Sk are the inner loop bodies. *)
@@ -1905,18 +1935,18 @@ UniformInnerLoopVars[{cf_,seq___},outerVars_,newClosedFormList_] :=
 
 (* *************************************************************************** *)
 (* Computes the closed forms for a system of loops *************************** *)
-(* Each inner loop's closed form is computed using RecSystem and RecSolve.    *)
+(* Each inner loops closed form is computed using RecSystem and RecSolve.      *)
 (* Returns the list of closed forms of inner loops (list of RecSolve outputs). *)
 (* It aborts computation, if one loop is not P-solvable ********************** *)
 (* *************************************************************************** *)
 
 
 CfIfLoopSeq[{innerLoop_,innerLoopList___},cfSystemList_,outerLoopVars_] :=
-    Module[ {recSystem,VarList,CFSystem,recVar,expVars,finVars,iniVars,AlgDep,newCFSystem,innerCfSytem},
+    Module[ {recSystem,VarList,CFSystem,recVar,expVars,finVars,iniVars,AlgDep,auxVars,newCFSystem,innerCfSytem},
 (*Print["Start FromLoopToRecs."];*)
         {recSystem,VarList,recVar} = FromLoopToRecs[innerLoop];
        (*Print["recSystem: ",recSystem];Print["VarList: ",VarList];Print["recVar: ",recVar];Print["Start RecSolve."];*)
-        {CFSystem,recVar,expVars,finVars,iniVars,AlgDep} = RecSolve[recSystem,VarList,recVar];
+        {CFSystem,recVar,expVars,finVars,iniVars,AlgDep,auxVars} = RecSolve[recSystem,VarList,recVar];
         innerCfSytem = {CFSystem,recVar,expVars,finVars,iniVars,AlgDep};
         newCFSytem = Append[cfSystemList,innerCfSytem];
         CfIfLoopSeq[{innerLoopList},newCFSytem,Union[outerLoopVars,finVars]]
