@@ -1830,6 +1830,51 @@ InvLoopAssg[loop_] :=
         Simplify[invariants]
     ]
 
+(**
+ * Computes the invariants for a loop with nested conditionals using the
+ * approach without merging of closed forms.
+ * Returns the ideal after repeated execution of S1,...,Sk
+ **)
+
+InvLoopCondWithoutMerge[loopList_] :=
+    Module[{cfList,loopVars,loop,invIdeal,ideal,count,rename,reverseRename,iniVars,finVars,iniVarRules,keys,vals,finVarRules},
+        Print[loopList];
+        {cfList, loopVars} = CfIfLoopSeq[loopList, {}, {}];
+
+        cfList      = UniformInnerLoopVars[cfList, loopVars, {}] // PrintDebug["[InvLoopSeq2] List of closed forms"];
+        innerIdeals = InvIdealLoopSeq[{#}]& /@ cfList;
+        loop        = cfList[[1]] // PrintDebug["loop"];
+        invIdeal    = innerIdeals[[1]] // PrintDebug["[InvLoopSeq] New invariants"];
+        ideal       = {};
+        count       = 1;
+
+        iniVars = loop[[5]];
+        rename = ((# -> Unique[])& /@ iniVars) // Association;
+        reverseRename = Thread[Values[rename] -> Keys[rename]] // Association;
+        
+        While[ideal != invIdeal,
+            innerIndex  = Mod[count, Length[cfList]] + 1;
+            ideal       = invIdeal;
+            loop        = cfList[[  ]] // PrintDebug["loop"];
+            iniVars     = loop[[5]];
+            finVars     = loop[[4]];
+            iniVarRules = ((# -> Unique[])& /@ iniVars) // Association // PrintDebug["Inivars"];
+            keys = Keys[iniVarRules];
+            vals = Values[iniVarRules];
+            keys = keys /. x_[0] -> x;
+            finVarRules = Thread[keys -> vals] // Association // PrintDebug["Replacement of finVars"];
+            (* finVarRules = iniVarRules /. KeyValuePattern[{x_[0] -> y_}] -> (x -> y) // PrintDebug["Replacement of finVars"]; *)
+            invIdeal = innerIdeals[innerIndex]; // PrintDebug["[InvLoopSeq] New invariants"];
+            invIdeal = (invIdeal /. iniVarRules) // PrintDebug["[InvLoopSeq] Renamed starting values"];
+            invIdeal = Union[invIdeal, (ideal /. rename /. finVarRules /. reverseRename) // PrintDebug["Renamed program variables"]];
+            invIdeal = GroebnerBasis[invIdeal, finVars, Values[iniVarRules]] // PrintDebug["New ideal"];
+
+            count = count + 1;
+        ];
+        PrintDebug["[InvLoopSeq] Number of appended inner loops", count];
+        PrintDebug["[InvLoopSeq] Fixed point reached after", count - 1];
+        Simplify[ideal]
+    ]
 
 (**
  * Computes the invariants for a loop with nested conditionals
