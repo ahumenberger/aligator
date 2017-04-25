@@ -130,7 +130,7 @@ If[ $Notebooks,
 (* *************************************************** *)
 
 
-Options[Aligator] = {IniVal -> {}, LoopCounter -> i, PrintBasis -> False};
+Options[Aligator] = {IniVal -> {}, LoopCounter -> i, EqualityInvariants -> False};
 
 RecEqs[{seq_:CompoundExpression[]}] := RecEqs[seq,{}]
 
@@ -138,7 +138,7 @@ Aligator[c_, opts__ : OptionPattern[]] :=
     Module[ {invariants = {},givenIniRecs,givenIniRules},
         (* Specific option handling to avoid evaluation of initial values. *)
         SetOptions[Aligator,LoopCounter->OptionValue[Aligator,Unevaluated[{opts}],LoopCounter]];
-        SetOptions[Aligator,PrintBasis->OptionValue[Aligator,Unevaluated[{opts}],PrintBasis]];
+        SetOptions[Aligator,EqualityInvariants->OptionValue[Aligator,Unevaluated[{opts}],EqualityInvariants]];
         invariants    = Aligator[c];
         givenIniRecs  = OptionValue[Aligator,Unevaluated[{opts}],IniVal,RecEqs];
         givenIniRules = Association @ InitialSubstitutions[givenIniRecs,{}];
@@ -148,7 +148,7 @@ Aligator[c_, opts__ : OptionPattern[]] :=
         $InitValues = Thread[keys -> vals];
         $InitValues = AssociateTo[givenIniRules, $InitValues] // PrintDebug["Final initial values"];
         invariants = invariants /. $InitValues;
-        invariants = If[OptionValue[Aligator, PrintBasis], invariants, And @@ (Equal[#,0]& /@ invariants)];
+        invariants = If[OptionValue[Aligator, EqualityInvariants], And @@ (Equal[#,0]& /@ invariants), invariants];
         PrintDebug["Invariants", invariants];
         Simplify[invariants]
     ]
@@ -1837,12 +1837,12 @@ InvLoopAssg[loop_] :=
  **)
 
 InvLoopCondWithoutMerge[loopList_] :=
-    Module[{cfList,loopVars,loop,invIdeal,ideal,count,rename,reverseRename,iniVars,finVars,iniVarRules,keys,vals,finVarRules},
+    Module[{cfList,loopVars,loop,invIdeal,ideal,count,rename,reverseRename,iniVars,finVars,iniVarRules,keys,vals,finVarRules,innerIdeals,innerIndex},
         Print[loopList];
         {cfList, loopVars} = CfIfLoopSeq[loopList, {}, {}];
 
         cfList      = UniformInnerLoopVars[cfList, loopVars, {}] // PrintDebug["[InvLoopSeq2] List of closed forms"];
-        innerIdeals = InvIdealLoopSeq[{#}]& /@ cfList;
+        innerIdeals = InvIdealLoopSeq[{#}]& /@ cfList // PrintDebug["Inner ideals"];
         loop        = cfList[[1]] // PrintDebug["loop"];
         invIdeal    = innerIdeals[[1]] // PrintDebug["[InvLoopSeq] New invariants"];
         ideal       = {};
@@ -1855,7 +1855,7 @@ InvLoopCondWithoutMerge[loopList_] :=
         While[ideal != invIdeal,
             innerIndex  = Mod[count, Length[cfList]] + 1;
             ideal       = invIdeal;
-            loop        = cfList[[  ]] // PrintDebug["loop"];
+            loop        = cfList[[innerIndex]] // PrintDebug["loop"];
             iniVars     = loop[[5]];
             finVars     = loop[[4]];
             iniVarRules = ((# -> Unique[])& /@ iniVars) // Association // PrintDebug["Inivars"];
@@ -1864,7 +1864,7 @@ InvLoopCondWithoutMerge[loopList_] :=
             keys = keys /. x_[0] -> x;
             finVarRules = Thread[keys -> vals] // Association // PrintDebug["Replacement of finVars"];
             (* finVarRules = iniVarRules /. KeyValuePattern[{x_[0] -> y_}] -> (x -> y) // PrintDebug["Replacement of finVars"]; *)
-            invIdeal = innerIdeals[innerIndex]; // PrintDebug["[InvLoopSeq] New invariants"];
+            invIdeal = innerIdeals[[innerIndex]] // PrintDebug["[InvLoopSeq] New invariants"];
             invIdeal = (invIdeal /. iniVarRules) // PrintDebug["[InvLoopSeq] Renamed starting values"];
             invIdeal = Union[invIdeal, (ideal /. rename /. finVarRules /. reverseRename) // PrintDebug["Renamed program variables"]];
             invIdeal = GroebnerBasis[invIdeal, finVars, Values[iniVarRules]] // PrintDebug["New ideal"];
