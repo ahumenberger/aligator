@@ -966,7 +966,7 @@ LinRecCSolve[x_[y_]==rhs_,n_] :=
             If[ shift == 0, (* inHomPart is 0 -> original rec is CFinite *)
                 newRec = x[y]==rhs,
                 (* make the recurrence CFinite *)
-                {newRec,newIniRules} = InhomRecTransform[x[y]==rhs,n,expectedOrder]
+                {newRec,newIniRules} = HomogeneousTransform2[x[y]==rhs,n] // PrintDebug["[LinRecCSolve] Homogeneous recurrence"];
             ];
             (* 3. solve newRec with newIniRules *)
             solSet      = SolveCFinRecurrence[{newRec,newIniRules},n];
@@ -1181,6 +1181,7 @@ ShiftOrder[a_^k_Integer,n_] :=
 
 Off[Solve::"svars"];
 
+(* DEPRECATED *)
 
 InhomRecTransform[f_[y_]==rhs_,recIndex_,newOrder_] :=
     Module[ {eval,eq,c,cf,originalOrder,n,val,pat,i,r,FTerm,FreeCoeff,FTermSys,sys = {},sol,newRec,j,iniVal,iniRHS,iniRel,newIniRules,newRecForm,coeffC,FCoefficient},
@@ -1408,6 +1409,46 @@ HomogeneousTransform[x_[y_]==rhs_,n_] :=
             rec = x[n+index] == Simplify[-(res - coeff * x[n+index]) / coeff];
         ];
         rec
+    ];
+
+HomogeneousTransform2[x_[y_]==rhs_,n_] :=
+    Module[{rec,eqn,iniRules,recOrder,startIndex,homPart,coeff,inhomPart,degree,res,index,eval,iniRel,iniRHS,iniVal},
+        rec = x[y] == rhs;
+        eqn = x[y] - rhs;
+        iniRules = {};
+        recOrder = RecurrenceOrder[rec,n,x] // PrintDebug["[HomTransform] Rec order"];
+        startIndex = Max[Cases[eqn,x[n+i_.] -> i]];
+        homPart = 0;
+        Do[
+            coeff = Coefficient[eqn,x[n+i]];
+            homPart = homPart + coeff * x[n+i],
+            {i,startIndex-recOrder,startIndex}
+        ];
+        inhomPart = (eqn - homPart) // Simplify // PrintDebug["[HomTransform] Inhom part"];
+        If[PossibleZeroQ[inhomPart],
+            PrintDebug["[HomTransform] Rec is homogeneous",rec],
+            degree = Exponent[inhomPart, n] // PrintDebug["[HomTransform] Degree of inhomPart"];
+
+            eval[j_] = Rule @@ rec /. n -> j;
+            iniRel = Table[eval[j], {j, 0, degree}];
+            iniRHS = #[[2]]& /@ iniRel;
+            iniVal = FixedPoint[# /. iniRel&, iniRHS, degree + 1 - recOrder];
+            iniRules = Table[Rule[iniRel[[i,1]], iniVal[[i]]], {i, 1, Length[iniVal]}];
+
+            res = eqn;
+            Do[
+                res = ((res /. n -> (n+1)) - res),
+                {degree + 1}
+            ];
+            (* res = homPart / inhomPart;
+            res = (res /. n -> (n+1)) - res; *)
+            res = res // Expand // PrintDebug["[HomogeneousTransform] Homogeneous recurrence"];
+            index = Max @@ Cases[res,x[n+i_.] -> i,Infinity];
+            coeff = Coefficient[res, x[n+index]];
+            rec = x[n+index] == Simplify[-(res - coeff * x[n+index]) / coeff];
+        ];
+
+        {rec, iniRules}
     ];
 
 (* ********************************************************************************** *)
