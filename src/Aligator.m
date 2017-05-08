@@ -1318,11 +1318,13 @@ GosperCheckAndSolve[rhs_,x_,n_] :=
 
 HyperSolve[x_[y_]==rhs_,n_] :=
     Module[ {eqn,hgTerms,solvable,recOrder,matrix,sval,coeff,cf,factorList,polyCoeff,expVars,expCoeff,factCoeff,solSet},
-        eqn      = (x[y] == rhs) // PrintDebug["[HS] HyperSolve with"];
-        eqn      = HomogeneousTransform[eqn,n] // PrintDebug["[HS] Homogeneous"];
-        recOrder = RecurrenceOrder[eqn,n,x];
-        hgTerms  = Hyper[eqn,x[n],Solutions->All] // PrintDebug["[HS] Solutions of Hyper"];
-        hgTerms  = (ToHg[#,n]& /@ hgTerms) // PrintDebug["[HS] Solutions of ToHg"];
+        eqn             = (x[y] == rhs) // PrintDebug["[HS] HyperSolve with"];
+        (* TODO: use iniRules *)
+        {eqn, iniRules} = HomogeneousTransform2[eqn,n] // PrintDebug["[HS] Homogeneous"];
+        recOrder        = RecurrenceOrder[eqn,n,x];
+        hgTerms         = Hyper[eqn,x[n],Solutions->All] // PrintDebug["[HS] Solutions of Hyper"];
+        hgTerms         = (ToHg[#,n]& /@ hgTerms) // PrintDebug["[HS] Solutions of ToHg"];
+
         If [hgTerms == {},
             solvable = False,
             solvable = True;
@@ -1418,12 +1420,12 @@ HomogeneousTransform2[x_[y_]==rhs_,n_] :=
         eqn = x[y] - rhs;
         iniRules = {};
         recOrder = RecurrenceOrder[rec,n,x] // PrintDebug["[HomTransform] Rec order"];
-        startIndex = Max[Cases[eqn,x[n+i_.] -> i]];
-        homPart = 0;
+        recVars  = Union[Cases[Expand[eqn], x[n+i_.]^k_., Infinity]];
+        homPart  = 0;
         Do[
-            coeff = Coefficient[eqn,x[n+i]];
-            homPart = homPart + coeff * x[n+i],
-            {i,startIndex-recOrder,startIndex}
+            coeff = Coefficient[eqn, recVar];
+            homPart = homPart + coeff * recVar,
+            {recVar, recVars}
         ];
         inhomPart = (eqn - homPart) // Simplify // PrintDebug["[HomTransform] Inhom part"];
         If[PossibleZeroQ[inhomPart],
