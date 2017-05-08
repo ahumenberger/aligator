@@ -512,7 +512,8 @@ RecSystem[assgn__] :=
         assgAll                  = RecEqs[assgn,{}];
         {recAssg,recVars}        = FlattenBody[assgAll,{},{}];
         {recRel,recVarList}      = RecRelations[recAssg,n,{},{},recVars];
-        {recEqSystem,recVarList} = FlattenRecurrences[recRel,n,recRel,recVarList];
+        {recEqSystem,recVarList} = FlattenRecurrences[recRel,n,recRel,recVarList] // PrintDebug["[RecSystem] flattened recurrences"];
+        recChangedVars           = Cases[recVarList, {t_, v_} /; !FreeQ[t, _[n + _.]] -> v] // PrintDebug["[RecSystem] recursively changed variables"];
         recEqSystem              = ShiftRec[#,n]&/@recEqSystem;
 
         (* Create replacement rules for starting values; needed if recurrences of order > 1 are involved *)
@@ -525,13 +526,11 @@ RecSystem[assgn__] :=
         $InitValues = $InitValues /. n -> 0;
 
         recEqSystem    = recEqSystem/.OptionValue[Aligator,LoopCounter]->n;
-        recChangedVars = ProperRecVars[recEqSystem,n,{}];
         If[ recChangedVars == {},
             Print["No recursively changed variables! Not P-solvable Loop!"];
             Abort[]
         ];
-        (* make shifts, if index contains minus operations, i.e. n-1 should be shifted to n *)
-        {finalRecEqSystem,finalRecVarList} = ShiftRec[{recEqSystem,recVarList},n];
+        {finalRecEqSystem,finalRecVarList} = {recEqSystem,recVarList};
         (* {finalRecEqSystem,finalRecVarList} = ShiftRec[recEqSystem,n,recVarList,{}]; *)
         allVars           = Union[Table[finalRecVarList[[i,2]],{i,1,Length[recVarList]}]];
         notRecChangedVars = Complement[allVars,recChangedVars];
@@ -550,7 +549,7 @@ RecSystem[assgn__] :=
                 normedVars = NormedVarList[normedVars,n,{}]
             ]
         ];
-        {normalizedRecEqSystem,normedVars,{n}}
+        {normalizedRecEqSystem,normedVars,{n}} // PrintDebug["[RecSystem] Return"]
     ]
 
 
