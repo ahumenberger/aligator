@@ -960,14 +960,15 @@ LinRecCSolve[x_[y_]==rhs_,n_] :=
         If[ Not[cfinite],
             PrintDebug["[LinRecCSolve] Not C-finite", x[y]==rhs],
             (* 2. it is CFinite ->  shift the inhomogenous part *)
-            givenOrder    = RecurrenceOrder[x[y] == rhs,n,x];
-            shift         = ShiftOrder[inHomPart,n];
-            expectedOrder = givenOrder+shift;
-            If[ shift == 0, (* inHomPart is 0 -> original rec is CFinite *)
-                newRec = x[y]==rhs,
+            (* givenOrder    = RecurrenceOrder[x[y] == rhs,n,x]; *)
+            (* shift         = ShiftOrder[inHomPart,n] // PrintDebug["shift"]; *)
+            (* expectedOrder = givenOrder+shift; *)
+            (* If[ shift == 0, inHomPart is 0 -> original rec is CFinite *)
+                (* newRec = x[y]==rhs, *)
                 (* make the recurrence CFinite *)
+                 (* HomogeneousTransform[x[y]==rhs,n] // PrintDebug["[LinRecCSolve TMP] Homogeneous recurrence"]; *)
                 {newRec,newIniRules} = HomogeneousTransform2[x[y]==rhs,n] // PrintDebug["[LinRecCSolve] Homogeneous recurrence"];
-            ];
+            (* ]; *)
             (* 3. solve newRec with newIniRules *)
             solSet      = SolveCFinRecurrence[{newRec,newIniRules},n];
             sol         = SolCFinConstruct[solSet,n];
@@ -1412,8 +1413,9 @@ HomogeneousTransform[x_[y_]==rhs_,n_] :=
     ];
 
 HomogeneousTransform2[x_[y_]==rhs_,n_] :=
-    Module[{rec,eqn,iniRules,recOrder,startIndex,homPart,coeff,inhomPart,degree,res,index,eval,iniRel,iniRHS,iniVal},
-        rec = x[y] == rhs;
+    Module[{rec,org,eqn,iniRules,recOrder,startIndex,homPart,coeff,inhomPart,degree,res,index,eval,iniRel,iniRHS,iniVal},
+        rec = (x[y] == rhs) // PrintDebug["[HomTransform] Recurrence"];
+        org = rec;
         eqn = x[y] - rhs;
         iniRules = {};
         recOrder = RecurrenceOrder[rec,n,x] // PrintDebug["[HomTransform] Rec order"];
@@ -1427,25 +1429,32 @@ HomogeneousTransform2[x_[y_]==rhs_,n_] :=
         inhomPart = (eqn - homPart) // Simplify // PrintDebug["[HomTransform] Inhom part"];
         If[PossibleZeroQ[inhomPart],
             PrintDebug["[HomTransform] Rec is homogeneous",rec],
-            degree = Exponent[inhomPart, n] // PrintDebug["[HomTransform] Degree of inhomPart"];
+            If[PolynomialQ[inhomPart, n],
+                (* THEN *)
+                degree = Exponent[inhomPart, n] // PrintDebug["[HomTransform] Degree of inhomPart"];
 
-            eval[j_] = Rule @@ rec /. n -> j;
-            iniRel = Table[eval[j], {j, 0, degree}];
-            iniRHS = #[[2]]& /@ iniRel;
-            iniVal = FixedPoint[# /. iniRel&, iniRHS, degree + 1 - recOrder];
-            iniRules = Table[Rule[iniRel[[i,1]], iniVal[[i]]], {i, 1, Length[iniVal]}];
-
-            res = eqn;
-            Do[
-                res = ((res /. n -> (n+1)) - res),
-                {degree + 1}
+                res = eqn;
+                Do[
+                    res = ((res /. n -> (n+1)) - res),
+                    {degree + 1}
+                ];
+                res   = res // Expand // PrintDebug["[HomogeneousTransform] Homogeneous recurrence"];
+                index = Max @@ Cases[res,x[n+i_.] -> i,Infinity];
+                coeff = Coefficient[res, x[n+index]];
+                rec   = x[n+index] == Simplify[-(res - coeff * x[n+index]) / coeff],
+                (* ELSE *)
+                degree = 1;
+                res    = homPart / inhomPart;
+                res    = (res /. n -> (n+1)) - res;
+                index  = Max @@ Cases[res,x[n+i_.] -> i,Infinity];
+                coeff  = Coefficient[res, x[n+index]];
+                rec    = x[n+index] == Simplify[-(res - coeff * x[n+index]) / coeff]
             ];
-            (* res = homPart / inhomPart;
-            res = (res /. n -> (n+1)) - res; *)
-            res = res // Expand // PrintDebug["[HomogeneousTransform] Homogeneous recurrence"];
-            index = Max @@ Cases[res,x[n+i_.] -> i,Infinity];
-            coeff = Coefficient[res, x[n+index]];
-            rec = x[n+index] == Simplify[-(res - coeff * x[n+index]) / coeff];
+            eval[j_] = Rule @@ org /. n -> j;
+            iniRel   = Table[eval[j], {j, 0, degree}];
+            iniRHS   = #[[2]]& /@ iniRel;
+            iniVal   = FixedPoint[# /. iniRel&, iniRHS, degree + 1 - (recOrder - 1)];
+            iniRules = Table[Rule[iniRel[[i,1]], iniVal[[i]]], {i, 1, Length[iniVal]}];
         ];
 
         {rec, iniRules}
@@ -1879,7 +1888,7 @@ InvLoopAssg[loop_] :=
 
 InvLoopCondWithoutMerge[loopList_] :=
     Module[{cfList,loopVars,loop,invIdeal,ideal,count,rename,reverseRename,iniVars,finVars,iniVarRules,keys,vals,finVarRules,innerIdeals,innerIndex},
-        Print[loopList];
+        PrintDebug["Inner loops", loopList];
         {cfList, loopVars} = CfIfLoopSeq[loopList, {}, {}];
 
         cfList      = UniformInnerLoopVars[cfList, loopVars, {}] // PrintDebug["[InvLoopSeq2] List of closed forms"];
