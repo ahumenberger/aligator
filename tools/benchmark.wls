@@ -12,7 +12,7 @@ Needs["RISC`Dependencies`"];
 << "src/Aligator.m";
 
 (* Specify benchmark directories relative to working directory *)
-benchmarkDirs = {"benchmarks/polyinv"};
+benchmarkDirs = {"benchmarks/fmcad2017/aligator"};
 (* Set timeout in seconds *)
 timeout = 2;
 (* Get all files with extension .al in benchmarkDirs *)
@@ -28,6 +28,9 @@ AbortProtect[
   ]
 ]
 Print[results // Grid];
+
+tex = Cases[results, {f_,{t_,r_}} -> {FileBaseName[f],t}];
+Print[tex // TeXForm];
 
 
 
