@@ -5,7 +5,7 @@ import quantitative.Analyze;
 /*
  * Sum of the first thirtith power of natural integers
  */
-public class petter30_2 {
+public class petter30 {
 
   private static int[] processArg(String[] args) {
     int[] arg = new int[args.length];

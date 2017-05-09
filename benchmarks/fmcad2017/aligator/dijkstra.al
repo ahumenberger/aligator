@@ -1,9 +1,9 @@
-WHILE[ (q!=1),
-    q:=q/4;
-    h:=p+q;
+WHILE[ (x!=1),
+    x:=x/4;
+    h:=p+x;
     p:=p/2;
     IF[ (r>=h),
-        p:=p+q;
+        p:=p+x;
         r:=r-h
     ]
 ]

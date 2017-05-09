@@ -1,25 +1,25 @@
 WHILE[ ((s>=d)&&(r!=0)),
-  IF[ (2*r-rp+q<0),
+  IF[ (2*r-rp+x<0),
     t:=r;
-    r:=2*r-rp+q+d+2;
+    r:=2*r-rp+x+d+2;
     rp:=t;
-    q:=q+4;
+    x:=x+4;
     d:=d+2,
-    IF[ ((2*r-rp+q>=0)&&(2*r-rp+q<d+2)),
+    IF[ ((2*r-rp+x>=0)&&(2*r-rp+x<d+2)),
       t:=r;
-      r:=2*r-rp+q;
+      r:=2*r-rp+x;
       rp:=t;
       d:=d+2,
-      IF[ ((2*r-rp+q>=0)&&(2*r-rp+q>=d+2)&&(2*r-rp+q<2*d+4)),
+      IF[ ((2*r-rp+x>=0)&&(2*r-rp+x>=d+2)&&(2*r-rp+x<2*d+4)),
         t:=r;
-        r:=2*r-rp+q-d-2;
+        r:=2*r-rp+x-d-2;
         rp:=t;
-        q:=q-4;
+        x:=x-4;
         d:=d+2,
         t:=r;
-        r:=2*r-rp+q-2*d-4;
+        r:=2*r-rp+x-2*d-4;
         rp:=t;
-        q:=q-8;
+        x:=x-8;
         d:=d+2
       ]
     ]
