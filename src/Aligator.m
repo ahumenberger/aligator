@@ -174,7 +174,7 @@ Aligator[c_] :=
             invariants = InvLoopAssg[loops],
             (* with conditional branches - invariant generation for loops with assignments only*)
             (*Print["With If-statements!"];*)
-            invariants = InvLoopCond[loops]
+            invariants = InvLoopCondWithoutMerge[loops]
         ];
         invariants
     ]
@@ -1892,12 +1892,13 @@ InvLoopAssg[loop_] :=
 InvLoopCondWithoutMerge[loopList_] :=
     Module[{cfList,loopVars,loop,invIdeal,ideal,count,rename,reverseRename,iniVars,finVars,iniVarRules,keys,vals,finVarRules,innerIdeals,innerIndex},
         PrintDebug["Inner loops", loopList];
-        {cfList, loopVars} = CfIfLoopSeq[loopList, {}, {}];
 
-        cfList      = UniformInnerLoopVars[cfList, loopVars, {}] // PrintDebug["[InvLoopSeq2] List of closed forms"];
-        innerIdeals = InvIdealLoopSeq[{#}]& /@ cfList // PrintDebug["Inner ideals"];
-        loop        = cfList[[1]] // PrintDebug["loop"];
-        invIdeal    = innerIdeals[[1]] // PrintDebug["[InvLoopSeq] New invariants"];
+        cfList      = LoopToClosedForms /@ loopList;
+        loopVars    = cfList[[All,4]] // Flatten // Union;
+        cfList      = UniformInnerLoopVars[cfList, loopVars, {}] // PrintDebug["[WithoutMerge] List of closed forms"];
+        innerIdeals = (ClosedFormsToIdeal /@ cfList) // PrintDebug["[WithoutMerge] Inner ideals"];
+        loop        = cfList[[1]] // PrintDebug["[WithoutMerge] Loop"];
+        invIdeal    = innerIdeals[[1]] // PrintDebug["[WithoutMerge] New invariants"];
         ideal       = {};
         count       = 1;
 
@@ -1908,7 +1909,7 @@ InvLoopCondWithoutMerge[loopList_] :=
         While[ideal != invIdeal,
             innerIndex  = Mod[count, Length[cfList]] + 1;
             ideal       = invIdeal;
-            loop        = cfList[[innerIndex]] // PrintDebug["loop"];
+            loop        = cfList[[innerIndex]] // PrintDebug["[WithoutMerge] Loop"];
             iniVars     = loop[[5]];
             finVars     = loop[[4]];
             iniVarRules = ((# -> Unique[])& /@ iniVars) // Association // PrintDebug["Inivars"];
@@ -1917,16 +1918,29 @@ InvLoopCondWithoutMerge[loopList_] :=
             keys = keys /. x_[0] -> x;
             finVarRules = Thread[keys -> vals] // Association // PrintDebug["Replacement of finVars"];
             (* finVarRules = iniVarRules /. KeyValuePattern[{x_[0] -> y_}] -> (x -> y) // PrintDebug["Replacement of finVars"]; *)
-            invIdeal = innerIdeals[[innerIndex]] // PrintDebug["[InvLoopSeq] New invariants"];
-            invIdeal = (invIdeal /. iniVarRules) // PrintDebug["[InvLoopSeq] Renamed starting values"];
+            invIdeal = innerIdeals[[innerIndex]] // PrintDebug["[WithoutMerge] New invariants"];
+            invIdeal = (invIdeal /. iniVarRules) // PrintDebug["[InvLoopWithoutMergeSeq] Renamed starting values"];
             invIdeal = Union[invIdeal, (ideal /. rename /. finVarRules /. reverseRename) // PrintDebug["Renamed program variables"]];
             invIdeal = GroebnerBasis[invIdeal, finVars, Values[iniVarRules]] // PrintDebug["New ideal"];
 
             count = count + 1;
         ];
-        PrintDebug["[InvLoopSeq] Number of appended inner loops", count];
-        PrintDebug["[InvLoopSeq] Fixed point reached after", count - 1];
+        PrintDebug["[WithoutMerge] Number of appended inner loops", count];
+        PrintDebug["[WithoutMerge] Fixed point reached after", count - 1];
         Simplify[invIdeal]
+    ]
+
+LoopToClosedForms[innerLoop_] :=
+    Module[{recSystem,varList,recVar},
+        {recSystem,varList,recVar} = FromLoopToRecs[innerLoop];
+        RecSolve[recSystem,varList,recVar]
+    ]
+
+ClosedFormsToIdeal[{cfSystem_,recVars_,expVars_,finVars_,iniVars_,algDeps_,auxVars_}] :=
+    Module[{elimVars,polySys,invariants},
+        elimVars = Union[recVars,expVars,auxVars];
+        polySys = Union[cfSystem,algDeps];
+        invariants = GroebnerBasis[polySys,finVars,elimVars]
     ]
 
 (**
@@ -2015,7 +2029,7 @@ UniformInnerLoopVars[{},outerVars_,newClosedFormList_] :=
 
 UniformInnerLoopVars[{cf_,seq___},outerVars_,newClosedFormList_] :=
     Module[ {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep,missingVars,changedCForm,missingRules},
-        {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep} = {cf[[1]],cf[[2]],cf[[3]],cf[[4]],cf[[5]],cf[[6]]};
+        {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep,auxVars} = {cf[[1]],cf[[2]],cf[[3]],cf[[4]],cf[[5]],cf[[6]],cf[[7]]};
         missingVars = Complement[outerVars,innerFinVars];
         If[ missingVars!= {},
             missingRules = Rule[#,#[0]]&/@missingVars; 
@@ -2026,7 +2040,7 @@ UniformInnerLoopVars[{cf_,seq___},outerVars_,newClosedFormList_] :=
             innerFinVars = Union[innerFinVars,missingVars];
             innerIniVars = Union[innerIniVars,#[0]&/@missingVars]
         ];
-        changedCForm = {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep};
+        changedCForm = {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep,auxVars};
         UniformInnerLoopVars[{seq},outerVars,Append[newClosedFormList,changedCForm]]
     ]
 
@@ -2091,7 +2105,7 @@ CFMerge[{seq___,cf_},mergedSys_] :=
 
 InvIdealLoopSeq[permSeq_] :=
     Module[ {elimVars,polySys,mergedCF,recVars,expVars,finVars,iniVars, algDeps,invariants},
-        {mergedCF,recVars,expVars,finVars,iniVars, algDeps} = CFMerge[permSeq,{{},{},{},{},{},{}}];
+        {mergedCF,recVars,expVars,finVars,iniVars,algDeps} = CFMerge[permSeq,{{},{},{},{},{},{}}];
         elimVars = Union[recVars,expVars];
         polySys = Union[mergedCF,algDeps];
         invariants = GroebnerBasis[polySys,finVars,elimVars]
