@@ -163,10 +163,12 @@ Aligator[c_] :=
         (* correct input - proceed! *)
         ifCheck = CheckIfSeq[c];
         (* Print["If-statements: ",ifCheck]; *)
-        loops = IfWhileTransform[c,Body[],Body[]];
-        (* Print["Number of inner loops:", Length[loops]]; *)
-        (* Print["Loops:",loops]; *)
-        If[ !ifCheck, 
+        loops = IfWhileTransform[c,Body[],Body[]] // PrintDebug["Nested loops"];
+        If[Length[loops] == 1,
+            loops = loops[[1]];
+            ifCheck = False
+        ];
+        If[!ifCheck, 
             (* no conditional branches - invariant generation for loops with assignments only*)
             (* Print["No If-statements!"]; *)
             invariants = InvLoopAssg[loops],
@@ -1924,7 +1926,7 @@ InvLoopCondWithoutMerge[loopList_] :=
         ];
         PrintDebug["[InvLoopSeq] Number of appended inner loops", count];
         PrintDebug["[InvLoopSeq] Fixed point reached after", count - 1];
-        Simplify[ideal]
+        Simplify[invIdeal]
     ]
 
 (**
