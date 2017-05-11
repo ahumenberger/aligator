@@ -164,7 +164,7 @@ Aligator[c_] :=
         ifCheck = CheckIfSeq[c];
         (* Print["If-statements: ",ifCheck]; *)
         loops = IfWhileTransform[c,Body[],Body[]] // PrintDebug["Nested loops"];
-        If[Length[loops] == 1,
+        If[Head[loops] == List && Length[loops] == 1,
             loops = loops[[1]];
             ifCheck = False
         ];
