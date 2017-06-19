@@ -63,7 +63,7 @@ More examples are provided in the repository.
 
 ## Publications
 
-1. A. Humenberger, M. Jaroschek, L. Kovács. Automated Generation of Non-Linear Loop Invariants Utilizing Hypergeometric Sequences. In *International Symposium on Symbolic and Algebraic Computation (ISSAC)*, 2017, https://arxiv.org/abs/1705.02863
+1. A. Humenberger, M. Jaroschek, L. Kovács. Automated Generation of Non-Linear Loop Invariants Utilizing Hypergeometric Sequences. In *International Symposium on Symbolic and Algebraic Computation (ISSAC)*, 2017, <https://arxiv.org/abs/1705.02863>
 
 2. L. Kovács. A Complete Invariant Generation Approach for P-solvable Loops. In *Proceedings of the
 International Conference on Perspectives of System Informatics (PSI)*, volume 5947 of *LNCS*, pages 242–256,
