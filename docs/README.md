@@ -77,7 +77,7 @@ pages 249–264, 2008.
 of the International Joint Conference on Automated Reasoning (IJCAR)*, volume 5195 of *LNCS*, pages
 275–282, 2008.
 
-5. :. Kovács. Invariant Generation with Aligator. In *Proceedings of Austrian-Japanese Workshop on
+5. L. Kovács. Invariant Generation with Aligator. In *Proceedings of Austrian-Japanese Workshop on
 Symbolic Computation in Software Science (SCCS)*, number 08-08 in *RISC-Linz Report Series*, pages 123–
 136, 2008.
 
