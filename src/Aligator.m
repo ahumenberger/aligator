@@ -174,7 +174,7 @@ Aligator[c_] :=
             invariants = InvLoopAssg[loops],
             (* with conditional branches - invariant generation for loops with assignments only*)
             (*Print["With If-statements!"];*)
-            invariants = InvLoopCondWithoutMerge[loops]
+            invariants = InvLoopCond[loops]
         ];
         invariants
     ]
