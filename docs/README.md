@@ -63,22 +63,23 @@ More examples are provided in the repository.
 
 ## Publications
 
-1. Laura Kovács. A Complete Invariant Generation Approach for P-solvable Loops. In *Proceedings of the
+1. A. Humenberger, M. Jaroschek, L. Kovács. Automated Generation of Non-Linear Loop Invariants Utilizing Hypergeometric Sequences. In *International Symposium on Symbolic and Algebraic Computation (ISSAC)*, 2017, https://arxiv.org/abs/1705.02863
+
+2. L. Kovács. A Complete Invariant Generation Approach for P-solvable Loops. In *Proceedings of the
 International Conference on Perspectives of System Informatics (PSI)*, volume 5947 of *LNCS*, pages 242–256,
 2009.
 
-2. Laura Kovács. Reasoning Algebraically About P-solvable Loops. In *Proceedings of the International Conference
+3. L. Kovács. Reasoning Algebraically About P-solvable Loops. In *Proceedings of the International Conference
 on Tools and Algorithms for the Construction and Analysis of Systems (TACAS)*, volume 4963 of *LNCS*,
 pages 249–264, 2008.
 
-3. Laura Kovács. Aligator: A Mathematica Package for Invariant Generation (System Description). In *Proceedings
+4. L. Kovács. Aligator: A Mathematica Package for Invariant Generation (System Description). In *Proceedings
 of the International Joint Conference on Automated Reasoning (IJCAR)*, volume 5195 of *LNCS*, pages
 275–282, 2008.
 
-4. Laura Kovács. Invariant Generation with Aligator. In *Proceedings of Austrian-Japanese Workshop on
+5. :. Kovács. Invariant Generation with Aligator. In *Proceedings of Austrian-Japanese Workshop on
 Symbolic Computation in Software Science (SCCS)*, number 08-08 in *RISC-Linz Report Series*, pages 123–
 136, 2008.
 
-4. Laura Kovács. Aligator: a Package for Reasoning about Loops. In *Proceedings of the International Conference
+6. L. Kovács. Aligator: a Package for Reasoning about Loops. In *Proceedings of the International Conference
 on Logic for Programming, Artificial Intelligence and Reasoning – Short Papers (LPAR-14)*, pages 5–8, 2007.
-
