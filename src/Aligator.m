@@ -2029,7 +2029,7 @@ UniformInnerLoopVars[{},outerVars_,newClosedFormList_] :=
 
 UniformInnerLoopVars[{cf_,seq___},outerVars_,newClosedFormList_] :=
     Module[ {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep,missingVars,changedCForm,missingRules},
-        {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep,auxVars} = {cf[[1]],cf[[2]],cf[[3]],cf[[4]],cf[[5]],cf[[6]],cf[[7]]};
+        {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep} = {cf[[1]],cf[[2]],cf[[3]],cf[[4]],cf[[5]],cf[[6]]};
         missingVars = Complement[outerVars,innerFinVars];
         If[ missingVars!= {},
             missingRules = Rule[#,#[0]]&/@missingVars; 
