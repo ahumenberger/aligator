@@ -175,6 +175,7 @@ Aligator[c_] :=
             (* with conditional branches - invariant generation for loops with assignments only*)
             (*Print["With If-statements!"];*)
             invariants = InvLoopCond[loops]
+            (* invariants = MPInvGen[loops] *)
         ];
         invariants
     ]
@@ -1901,11 +1902,10 @@ MPInvGen[loopList_] :=
         While[newIdeal != invIdeal && newIdeal != {},
             invIdeal = newIdeal;
             newIdeal = MPOuterIteration[cfList, invIdeal, loopCnt];
-            loopCnt = loopCnt + Length[cfList];
-            If[newIdeal == {}, Print["ABCDFASDF"], Print["WHAAT"]];
-            Print[invIdeal];
-            If[newIdeal == invIdeal, Print["ABCDFASDF"], Print["WHAAT"]];
-            Print["dsfk"];
+            loopCnt  = loopCnt + Length[cfList];
+            invIdeal = (invIdeal /. x_[i_] /; i > 0 -> x[i + Length[cfList]]) // PrintDebug["[MPInvGen] old invIdeal"];
+            If[newIdeal == {}, Print["ABCDFASDF1"], Print["WHAAT1"]];
+            If[newIdeal == invIdeal, Print["ABCDFASDF2"], Print["WHAAT2"]];
         ];
         newIdeal
     ]
@@ -1932,9 +1932,10 @@ MPOuterIteration[cfList_, preIdeal_, loopCnt_] :=
                 elimVars = Union[elimVars, iniVars]
             ];
             PrintDebug["[MPOuterIteration] elimVars", elimVars];
-            polyVars = Union[(# /. x_ -> x[0])& /@ vars, (# /. x_ -> x[loopCnt + loopIdx])& /@ vars, elimVars] // PrintDebug["[MPOuterIteration] vars"];
-            invIdeal = GroebnerBasis[invIdeal, polyVars, elimVars] // PrintDebug["[MPOuterIteration] invIdeal"]
-            ,{loop, cfList}
+            polyVars = Union[(# /. x_ -> x[0])& /@ vars, (# /. x_ -> x[loopCnt + loopIdx])& /@ vars] // PrintDebug["[MPOuterIteration] vars"];
+            invIdeal = GroebnerBasis[invIdeal, polyVars, elimVars] // PrintDebug["[MPOuterIteration] invIdeal"];
+            loopIdx = loopIdx + 1,
+            {loop, cfList}
         ];
         Simplify[invIdeal]
     ]
