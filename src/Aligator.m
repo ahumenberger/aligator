@@ -1889,44 +1889,53 @@ InvLoopAssg[loop_] :=
  * Returns the ideal after repeated execution of S1,...,Sk
  **)
 
-InvLoopCondWithoutMerge[loopList_] :=
-    Module[{cfList,loopVars,loop,invIdeal,ideal,count,rename,reverseRename,iniVars,finVars,iniVarRules,keys,vals,finVarRules,innerIdeals,innerIndex},
-        PrintDebug["Inner loops", loopList];
-
-        cfList      = LoopToClosedForms /@ loopList;
-        loopVars    = cfList[[All,4]] // Flatten // Union;
-        cfList      = UniformInnerLoopVars[cfList, loopVars, {}] // PrintDebug["[WithoutMerge] List of closed forms"];
-        innerIdeals = (ClosedFormsToIdeal /@ cfList) // PrintDebug["[WithoutMerge] Inner ideals"];
-        loop        = cfList[[1]] // PrintDebug["[WithoutMerge] Loop"];
-        invIdeal    = innerIdeals[[1]] // PrintDebug["[WithoutMerge] New invariants"];
-        ideal       = {};
-        count       = 1;
-
-        iniVars = loop[[5]];
-        rename = ((# -> Unique[])& /@ iniVars) // Association;
-        reverseRename = Thread[Values[rename] -> Keys[rename]] // Association;
-        
-        While[ideal != invIdeal,
-            innerIndex  = Mod[count, Length[cfList]] + 1;
-            ideal       = invIdeal;
-            loop        = cfList[[innerIndex]] // PrintDebug["[WithoutMerge] Loop"];
-            iniVars     = loop[[5]];
-            finVars     = loop[[4]];
-            iniVarRules = ((# -> Unique[])& /@ iniVars) // Association // PrintDebug["Inivars"];
-            keys = Keys[iniVarRules];
-            vals = Values[iniVarRules];
-            keys = keys /. x_[0] -> x;
-            finVarRules = Thread[keys -> vals] // Association // PrintDebug["Replacement of finVars"];
-            (* finVarRules = iniVarRules /. KeyValuePattern[{x_[0] -> y_}] -> (x -> y) // PrintDebug["Replacement of finVars"]; *)
-            invIdeal = innerIdeals[[innerIndex]] // PrintDebug["[WithoutMerge] New invariants"];
-            invIdeal = (invIdeal /. iniVarRules) // PrintDebug["[InvLoopWithoutMergeSeq] Renamed starting values"];
-            invIdeal = Union[invIdeal, (ideal /. rename /. finVarRules /. reverseRename) // PrintDebug["Renamed program variables"]];
-            invIdeal = GroebnerBasis[invIdeal, finVars, Values[iniVarRules]] // PrintDebug["New ideal"];
-
-            count = count + 1;
+MPInvGen[loopList_] :=
+    Module[{cfList, invideal, newIdeal, loopCnt},
+        cfList   = (LoopToClosedForms /@ loopList) // PrintDebug["[MPInvGen] cfList"];
+        loopVars = cfList[[All,4]] // Flatten // Union;
+        cfList   = UniformInnerLoopVars[cfList, loopVars, {}] // PrintDebug["[MPInvGen] cfList (common loop vars)"];
+        cfList   = (IndexFinalVariables /@ cfList) // PrintDebug["[MPInvGen] cfList (indexed final vars)"];
+        invIdeal = {};
+        newIdeal = ((# /. x_ -> {x[1] - x[0]})& /@ loopVars) // Flatten // PrintDebug["[MPInvGen] initial ideal"];
+        loopCnt  = 1;
+        While[newIdeal != invIdeal && newIdeal != {},
+            invIdeal = newIdeal;
+            newIdeal = MPOuterIteration[cfList, invIdeal, loopCnt];
+            loopCnt = loopCnt + Length[cfList];
+            If[newIdeal == {}, Print["ABCDFASDF"], Print["WHAAT"]];
+            Print[invIdeal];
+            If[newIdeal == invIdeal, Print["ABCDFASDF"], Print["WHAAT"]];
+            Print["dsfk"];
         ];
-        PrintDebug["[WithoutMerge] Number of appended inner loops", count];
-        PrintDebug["[WithoutMerge] Fixed point reached after", count - 1];
+        newIdeal
+    ]
+
+MPOuterIteration[cfList_, preIdeal_, loopCnt_] :=
+    Module[{invIdeal, loopIdx, varRules, loop, cfSystem, algDeps, recVars, expVars, elimVars, vars},
+        invIdeal = preIdeal;
+        loopIdx  = loopCnt; (* Current loop index *)
+        Do[
+            iniVars  = loop[[5]];
+            vars     = iniVars /. x_[_] -> x;
+            varRules = ((# /. (x_ -> (x[i_] -> x[i + loopIdx])))& /@ vars) // PrintDebug["[MPOuterIteration] varRules"];
+            loop     = (loop /. varRules) // PrintDebug["[MPOuterIteration] loop (new index)"];
+            cfSystem = loop[[1]];
+            algDeps  = loop[[6]];
+            recVars  = loop[[2]];
+            expVars  = loop[[3]];
+            (* finVars  = loop[[4]]; *)
+            iniVars  = loop[[5]];
+            cfSystem = (cfSystem /. x_ == y_ -> x - y) // PrintDebug["[MPOuterIteration] cfSystem (rewritten)"];
+            invIdeal = Union[cfSystem, algDeps, invIdeal];
+            elimVars = Union[expVars, recVars];
+            If[loopIdx > 0,
+                elimVars = Union[elimVars, iniVars]
+            ];
+            PrintDebug["[MPOuterIteration] elimVars", elimVars];
+            polyVars = Union[(# /. x_ -> x[0])& /@ vars, (# /. x_ -> x[loopCnt + loopIdx])& /@ vars, elimVars] // PrintDebug["[MPOuterIteration] vars"];
+            invIdeal = GroebnerBasis[invIdeal, polyVars, elimVars] // PrintDebug["[MPOuterIteration] invIdeal"]
+            ,{loop, cfList}
+        ];
         Simplify[invIdeal]
     ]
 
@@ -1935,6 +1944,18 @@ LoopToClosedForms[innerLoop_] :=
         {recSystem,varList,recVar} = FromLoopToRecs[innerLoop];
         RecSolve[recSystem,varList,recVar]
     ]
+
+IndexFinalVariables[loop_] :=
+    Module[{rename,reverseRename,finVars,iniVars,finVarsRules},
+        {finVars, iniVars} = {loop[[4]], loop[[5]]};
+        (* Rules for renaming initial variables, and re-renaming *)
+        rename = ((# -> Unique[])& /@ iniVars) // Association;
+        reverseRename = Thread[Values[rename] -> Keys[rename]] // Association;
+        (* Rule for renaming final variables: b -> b[1] *)
+        finVarsRules = ((# /. (x_ -> (x -> x[1])))& /@ finVars) // Association // PrintDebug["[IndexFinalVariables] finVarsRules"];
+        loop /. rename /. finVarsRules /. reverseRename 
+    ]
+
 
 ClosedFormsToIdeal[{cfSystem_,recVars_,expVars_,finVars_,iniVars_,algDeps_,auxVars_}] :=
     Module[{elimVars,polySys,invariants},
@@ -2285,6 +2306,7 @@ PrintDebug[msg_, expr_] :=
 (* Operator form of PrintDebug; allows statements like: var = expr // PrintDebug["Value of var"] *)
 PrintDebug[msg_][expr_] := PrintDebug[msg, expr];
 
+DebugMessages[] := Block[{}, Aligator`$debugPrint = Print]
 
 End[];
 
