@@ -174,8 +174,8 @@ Aligator[c_] :=
             invariants = InvLoopAssg[loops],
             (* with conditional branches - invariant generation for loops with assignments only*)
             (*Print["With If-statements!"];*)
-            invariants = InvLoopCond[loops]
-            (* invariants = MPInvGen[loops] *)
+            (* invariants = InvLoopCond[loops] *)
+            invariants = MPInvGen[loops]
         ];
         invariants
     ]
@@ -1891,7 +1891,7 @@ InvLoopAssg[loop_] :=
  **)
 
 MPInvGen[loopList_] :=
-    Module[{cfList, invideal, newIdeal, loopCnt},
+    Module[{cfList, invideal, newIdeal, loopCnt, loopVars},
         cfList   = (LoopToClosedForms /@ loopList) // PrintDebug["[MPInvGen] cfList"];
         loopVars = cfList[[All,4]] // Flatten // Union;
         cfList   = UniformInnerLoopVars[cfList, loopVars, {}] // PrintDebug["[MPInvGen] cfList (common loop vars)"];
@@ -1911,7 +1911,7 @@ MPInvGen[loopList_] :=
     ]
 
 MPOuterIteration[cfList_, preIdeal_, loopCnt_] :=
-    Module[{invIdeal, loopIdx, varRules, loop, cfSystem, algDeps, recVars, expVars, elimVars, vars},
+    Module[{invIdeal, loopIdx, varRules, loop, cfSystem, algDeps, recVars, expVars, elimVars, vars, polyVars},
         invIdeal = preIdeal;
         loopIdx  = loopCnt; (* Current loop index *)
         Do[
@@ -1925,9 +1925,11 @@ MPOuterIteration[cfList_, preIdeal_, loopCnt_] :=
             expVars  = loop[[3]];
             (* finVars  = loop[[4]]; *)
             iniVars  = loop[[5]];
+            auxVars  = loop[[7]];
             cfSystem = (cfSystem /. x_ == y_ -> x - y) // PrintDebug["[MPOuterIteration] cfSystem (rewritten)"];
+            algDeps  = (algDeps /. x_ == y_ -> x - y) // PrintDebug["[MPOuterIteration] algDeps (rewritten)"];
             invIdeal = Union[cfSystem, algDeps, invIdeal];
-            elimVars = Union[expVars, recVars];
+            elimVars = Union[expVars, recVars, auxVars];
             If[loopIdx > 0,
                 elimVars = Union[elimVars, iniVars]
             ];
@@ -2050,8 +2052,8 @@ UniformInnerLoopVars[{},outerVars_,newClosedFormList_] :=
 
 
 UniformInnerLoopVars[{cf_,seq___},outerVars_,newClosedFormList_] :=
-    Module[ {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep,missingVars,changedCForm,missingRules},
-        {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep} = {cf[[1]],cf[[2]],cf[[3]],cf[[4]],cf[[5]],cf[[6]]};
+    Module[ {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep,missingVars,changedCForm,missingRules,innerAuxVars},
+        {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep,innerAuxVars} = {cf[[1]],cf[[2]],cf[[3]],cf[[4]],cf[[5]],cf[[6]],cf[[7]]};
         missingVars = Complement[outerVars,innerFinVars];
         If[ missingVars!= {},
             missingRules = Rule[#,#[0]]&/@missingVars; 
@@ -2062,7 +2064,7 @@ UniformInnerLoopVars[{cf_,seq___},outerVars_,newClosedFormList_] :=
             innerFinVars = Union[innerFinVars,missingVars];
             innerIniVars = Union[innerIniVars,#[0]&/@missingVars]
         ];
-        changedCForm = {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep,auxVars};
+        changedCForm = {innerCF,innerRecVar,innerExps,innerFinVars,innerIniVars,innerAlgDep,innerAuxVars};
         UniformInnerLoopVars[{seq},outerVars,Append[newClosedFormList,changedCForm]]
     ]
 
