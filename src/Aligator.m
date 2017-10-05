@@ -573,6 +573,35 @@ NormedVarList[{vars1_,seq___},n_,VarList_] :=
         ]
     ]
 
+(**
+ * For a variable a[i] with i > 0 it extracts an expression depending 
+ * only on a[0],b[0],... from the recurrence relation.
+ **)
+
+InitValue[recRel_, vars_, n_] :=
+    Module[{var, idx, rel, lhs, rhs, newVars, rules, initRules},
+        initRules = {};
+        Do[
+            {var, idx} = variable /. x_[i_] -> {x, i};
+            rel = Cases[recRel, var[_] == _];
+            rel = rel /. n -> idx - 1;
+            Print[rel];
+            {lhs, rhs} = (rel /. lhs_ == rhs_ -> {lhs, rhs}) // Flatten;
+            Print[{lhs, rhs}];
+            While[True,
+                newVars = Cases[rhs, x_[i_] /; i > 0 -> x[i], Infinity];
+                Print[newVars];
+                If[Length[newVars] == 0,
+                    Break[]
+                ];
+                rules = InitVars[recRel, newVars, n];
+                rhs = rhs /. rules
+            ];
+            AppendTo[initRules, lhs -> rhs],
+            {variable, vars}
+        ];
+        initRules // Simplify
+    ]
 
 (* ************************************************************* *)
 (* ************ Removing multiple variable changes ************* *)
