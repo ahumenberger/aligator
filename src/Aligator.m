@@ -1939,8 +1939,6 @@ MPInvGen[loopList_] :=
             newIdeal = MPOuterIteration[cfList, invIdeal, loopCnt];
             loopCnt  = loopCnt + Length[cfList];
             invIdeal = (invIdeal /. x_[i_] /; i > 0 -> x[i + Length[cfList]]) // PrintDebug["[MPInvGen] old invIdeal"];
-            If[newIdeal == {}, Print["ABCDFASDF1"], Print["WHAAT1"]];
-            If[newIdeal == invIdeal, Print["ABCDFASDF2"], Print["WHAAT2"]];
         ];
         newIdeal
     ]
