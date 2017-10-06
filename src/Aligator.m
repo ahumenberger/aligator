@@ -1571,10 +1571,12 @@ RecSolve[recSystem_,varList_,{recVar_}] :=
         (* Print["Start PSolvability Check for ", cfSystem, " with recIndex: ", n]; *)
         {newRecSystem,expVars,expBases,expDepList,auxVars} = CleanPSolvableCheck[cfSystem,n];
         (* Print["newRecSystem: ",newRecSystem];Print["expVars: ",expVars];Print["expBases: ",expBases];Print["expDepList: ",expDepList]; *)
-        iniVarListCorresp      = varList/.n->0;
-        iniVarList             = Table[iniVarListCorresp[[i,1]],{i,1,Length[iniVarListCorresp]}];
+        (* iniVarListCorresp      = varList/.n->0; *)
+        (* iniVarList             = Table[iniVarListCorresp[[i,1]],{i,1,Length[iniVarListCorresp]}]; *)
+        iniVarList = Table[varList[[i,2]][0],{i,1,Length[varList]}];
         (* TODO check if SeqToVars is still necessary *)
         {newRecSystem,finVars} = SeqToVars[newRecSystem,varList,expVars,expBases,n];
+        (* TODO necessary? *)
         iniVarRules            = IniValuesAndVarRules[finVars,iniVarList];
         {newRecSystem/.iniVarRules,{n},expVars,finVars,iniVarList/.iniVarRules,expDepList,auxVars}
     ]
