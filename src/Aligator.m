@@ -147,7 +147,7 @@ Aligator[c_, opts__ : OptionPattern[]] :=
         vals = vals /. givenIniRules;
         $InitValues = Thread[keys -> vals];
         $InitValues = AssociateTo[givenIniRules, $InitValues] // PrintDebug["Final initial values"];
-        invariants = invariants /. $InitValues;
+        invariants = invariants /. givenIniRules;
         invariants = If[OptionValue[Aligator, EqualityInvariants], And @@ (Equal[#,0]& /@ invariants), invariants];
         PrintDebug["Invariants", invariants];
         Simplify[invariants]
@@ -528,7 +528,8 @@ RecSystem[assgn__] :=
         $InitValues = $InitValues /. assignRules;
         $InitValues = $InitValues /. n -> 0;
 
-        recEqSystem    = recEqSystem/.OptionValue[Aligator,LoopCounter]->n;
+        recEqSystem = recEqSystem /. OptionValue[Aligator,LoopCounter]->n;
+        recRel      = (recRel /. OptionValue[Aligator,LoopCounter]->n);
         If[ recChangedVars == {},
             Print["No recursively changed variables! Not P-solvable Loop!"];
             Abort[]
@@ -552,7 +553,12 @@ RecSystem[assgn__] :=
                 normedVars = NormedVarList[normedVars,n,{}]
             ]
         ];
-        {normalizedRecEqSystem,normedVars,{n}} // PrintDebug["[RecSystem] Return"]
+
+        rhsSet = normalizedRecEqSystem /. _ == rhs_ -> rhs /. n -> 0;
+        varSet = newVars = Cases[rhsSet, x_[i_] /; i > 0 -> x[i], Infinity];
+        initExpr = InitExpr[recRel, varSet, n] // PrintDebug["[RecSystem] init value expressions"];
+
+        {normalizedRecEqSystem,normedVars,{n},initExpr} // PrintDebug["[RecSystem] Return"]
     ]
 
 
@@ -578,23 +584,20 @@ NormedVarList[{vars1_,seq___},n_,VarList_] :=
  * only on a[0],b[0],... from the recurrence relation.
  **)
 
-InitValue[recRel_, vars_, n_] :=
+InitExpr[recRel_, vars_, n_] :=
     Module[{var, idx, rel, lhs, rhs, newVars, rules, initRules},
         initRules = {};
         Do[
             {var, idx} = variable /. x_[i_] -> {x, i};
             rel = Cases[recRel, var[_] == _];
             rel = rel /. n -> idx - 1;
-            Print[rel];
             {lhs, rhs} = (rel /. lhs_ == rhs_ -> {lhs, rhs}) // Flatten;
-            Print[{lhs, rhs}];
             While[True,
                 newVars = Cases[rhs, x_[i_] /; i > 0 -> x[i], Infinity];
-                Print[newVars];
                 If[Length[newVars] == 0,
                     Break[]
                 ];
-                rules = InitVars[recRel, newVars, n];
+                rules = InitExpr[recRel, newVars, n];
                 rhs = rhs /. rules
             ];
             AppendTo[initRules, lhs -> rhs],
@@ -1903,8 +1906,9 @@ ShiftBackSolSet[system__,n_,shiftValue_] :=
 
 InvLoopAssg[loop_] :=
     Module[ {recSystem,VarList,CFSystem,recVar,expVars,finVars,iniVars,AlgDep,elimVars,polySystem,invariants},
-        {recSystem,VarList,recVar}                       = FromLoopToRecs[loop];
-        {CFSystem,recVar,expVars,finVars,iniVars,AlgDep,auxVars} = RecSolve[recSystem,VarList,recVar];
+        (* {recSystem,VarList,recVar,initExpr}                      = FromLoopToRecs[loop]; *)
+        (* {CFSystem,recVar,expVars,finVars,iniVars,AlgDep,auxVars} = RecSolve[recSystem,VarList,recVar]; *)
+        {CFSystem,recVar,expVars,finVars,iniVars,AlgDep,auxVars} = LoopToClosedForms[loop];
         (* Print["P-solvable Loop!"]; *)
         elimVars   = Union[recVar,expVars,auxVars] // PrintDebug["Elim variables"];
         polySystem = Union[AlgDep,CFSystem] // PrintDebug["System of polynomials"];
@@ -1973,8 +1977,9 @@ MPOuterIteration[cfList_, preIdeal_, loopCnt_] :=
 
 LoopToClosedForms[innerLoop_] :=
     Module[{recSystem,varList,recVar},
-        {recSystem,varList,recVar} = FromLoopToRecs[innerLoop];
-        RecSolve[recSystem,varList,recVar]
+        {recSystem,varList,recVar,initExpr} = FromLoopToRecs[innerLoop];
+        cfSystem = RecSolve[recSystem,varList,recVar] // PrintDebug["[LoopToClosedForms] cfSystem"];
+        (cfSystem /. initExpr) // PrintDebug["[LoopToClosedForms] cfSystem (new)"]
     ]
 
 IndexFinalVariables[loop_] :=
@@ -2109,7 +2114,7 @@ UniformInnerLoopVars[{cf_,seq___},outerVars_,newClosedFormList_] :=
 CfIfLoopSeq[{innerLoop_,innerLoopList___},cfSystemList_,outerLoopVars_] :=
     Module[ {recSystem,VarList,CFSystem,recVar,expVars,finVars,iniVars,AlgDep,auxVars,newCFSystem,innerCfSytem},
 (*Print["Start FromLoopToRecs."];*)
-        {recSystem,VarList,recVar} = FromLoopToRecs[innerLoop];
+        {recSystem,VarList,recVar,initExpr} = FromLoopToRecs[innerLoop];
        (*Print["recSystem: ",recSystem];Print["VarList: ",VarList];Print["recVar: ",recVar];Print["Start RecSolve."];*)
         {CFSystem,recVar,expVars,finVars,iniVars,AlgDep,auxVars} = RecSolve[recSystem,VarList,recVar];
         innerCfSytem = {CFSystem,recVar,expVars,finVars,iniVars,AlgDep};
