@@ -1967,11 +1967,63 @@ MPOuterIteration[cfList_, preIdeal_, loopCnt_] :=
                 elimVars = Union[elimVars, iniVars]
             ];
             PrintDebug["[MPOuterIteration] elimVars", elimVars];
-            polyVars = Union[(# /. x_ -> x[0])& /@ vars, (# /. x_ -> x[loopCnt + loopIdx])& /@ vars] // PrintDebug["[MPOuterIteration] vars"];
+            polyVars = Union[(# /. x_ -> x[0])& /@ vars, (# /. x_ -> x[loopIdx + 1])& /@ vars] // PrintDebug["[MPOuterIteration] vars"];
             invIdeal = GroebnerBasis[invIdeal, polyVars, elimVars] // PrintDebug["[MPOuterIteration] invIdeal"];
             loopIdx = loopIdx + 1,
             {loop, cfList}
         ];
+        Simplify[invIdeal]
+    ]
+
+MPInvGenDirect[loopList_] :=
+    Module[{invIdeal, loopIdx, varRules, loop, cfSystem, algDeps, recVars, expVars, elimVars, vars, polyVars, k},
+        cfList   = (LoopToClosedForms /@ loopList) // PrintDebug["[MPInvGenDirect] cfList"];
+        loopVars = cfList[[All,4]] // Flatten // Union;
+        cfList   = UniformInnerLoopVars[cfList, loopVars, {}] // PrintDebug["[MPInvGenDirect] cfList (common loop vars)"];
+        cfList   = (IndexFinalVariables /@ cfList) // PrintDebug["[MPInvGenDirect] cfList (indexed final vars)"];
+        (* invIdeal = preIdeal; *)
+        loopIdx  = 1; (* Current loop index *)
+        elimVars = {};
+        polyVars = {};
+        polySys  = ((# /. x_ -> {x[1] - x[0]})& /@ loopVars) // Flatten // PrintDebug["[MPInvGenDirect] initial ideal"];
+        Do[
+            Do[
+                iniVars  = loop[[5]];
+                vars     = iniVars /. x_[_] -> x;
+                varRules = ((# /. (x_ -> (x[i_] -> x[i + loopIdx])))& /@ vars) // PrintDebug["[MPInvGenDirect] varRules"];
+                loop     = (loop /. varRules) // PrintDebug["[MPInvGenDirect] loop (new index)"];
+                cfSystem = loop[[1]];
+                algDeps  = loop[[6]];
+                recVars  = loop[[2]];
+                expVars  = loop[[3]];
+                (* finVars  = loop[[4]]; *)
+                iniVars  = loop[[5]];
+                auxVars  = loop[[7]];
+                (* rules for new rec, exp und fact variables *)
+                recRules = (# -> Unique[])& /@ recVars;
+                expRules = (# -> Unique[])& /@ expVars;
+                auxRules = (# -> Unique[])& /@ auxVars;
+
+                cfSystem = (cfSystem /. x_ == y_ -> x - y);
+                algDeps  = (algDeps /. x_ == y_ -> x - y);
+                cfSystem = (cfSystem /. recRules /. expRules /. auxRules) // PrintDebug["[MPInvGenDirect] cfSystem (rewritten)"];
+                algDeps  = (algDeps /. recRules /. expRules /. auxRules) // PrintDebug["[MPInvGenDirect] algDeps (rewritten)"];
+
+                polySys  = Union[polySys, cfSystem, algDeps];
+                elimVars = Union[elimVars, Values[recRules], Values[expRules], Values[auxRules]];
+                If[loopIdx > 0,
+                    elimVars = Union[elimVars, iniVars]
+                ];
+                PrintDebug["[MPInvGenDirect] elimVars", elimVars];
+                polyVars = Union[polyVars, (# /. x_ -> x[0])& /@ vars, (# /. x_ -> x[loopIdx + 1])& /@ vars] // PrintDebug["[MPInvGenDirect] vars"];
+                (* invIdeal = GroebnerBasis[invIdeal, polyVars, elimVars] // PrintDebug["[MPInvGenDirect] invIdeal"]; *)
+                loopIdx = loopIdx + 1,
+                {loop, cfList}
+            ];
+            ,{k, 1, Length[loopVars]}
+        ];
+        invIdeal = GroebnerBasis[polySys, polyVars, elimVars] // PrintDebug["[MPInvGenDirect] invIdeal"];
+        
         Simplify[invIdeal]
     ]
 
