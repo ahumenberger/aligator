@@ -12,14 +12,15 @@ Needs["RISC`Dependencies`"];
 << "src/Aligator.m";
 
 (* Specify benchmark directories relative to working directory *)
-benchmarkDirs = {"benchmarks/fmcad2017/aligator"};
+benchmarkDirs = {"benchmarks/multipath"};
 (* Set timeout in seconds *)
-timeout = 2;
+timeout = 60;
 (* Get all files with extension .al in benchmarkDirs *)
 benchmarks = FileNames["*.al", benchmarkDirs];
 results = {};
 AbortProtect[
   Do[
+	  Print[FileBaseName[file]];
     loop = ReadString[file];
     cmd = "Timing[TimeConstrained[Aligator[" <> loop <> "]," <> ToString[timeout] <> ", $Timeout]]";
     res = {file, ToExpression[cmd]};
